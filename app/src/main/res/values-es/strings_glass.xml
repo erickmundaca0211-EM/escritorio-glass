@@ -14,4 +14,20 @@
     <string name="accent_mint">Menta</string>
     <string name="accent_amber">Ámbar</string>
     <string name="accent_lilac">Lila</string>
+
+    <!-- Barra de tareas (Fase 2) -->
+    <string name="taskbar_start">Inicio</string>
+    <string name="taskbar_search">Buscar</string>
+    <string name="taskbar_task_view">Vista de tareas</string>
+    <string name="taskbar_back">Atrás</string>
+    <string name="taskbar_home">Pantalla de inicio</string>
+    <string name="taskbar_hidden_icons">Mostrar íconos ocultos</string>
+    <string name="taskbar_notifications">Notificaciones</string>
+    <string name="taskbar_date_time">Fecha y hora</string>
+    <string name="taskbar_calendar">Calendario</string>
+    <string name="taskbar_keep_visible">Fijar la barra</string>
+    <string name="taskbar_hide">Ocultar la barra</string>
+    <string name="taskbar_app_settings">Ajustes de Escritorio Glass</string>
+    <string name="calendar_permission">Calendario</string>
+    <string name="calendar_permission_desc">Muestra tu próximo evento en la barra de tareas. Los eventos solo se muestran: no se guardan ni se envían a ningún lado.</string>
 </resources>

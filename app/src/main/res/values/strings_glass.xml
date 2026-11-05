@@ -15,4 +15,20 @@
     <string name="accent_mint">Mint</string>
     <string name="accent_amber">Amber</string>
     <string name="accent_lilac">Lilac</string>
+
+    <!-- Taskbar (phase 2) -->
+    <string name="taskbar_start">Start</string>
+    <string name="taskbar_search">Search</string>
+    <string name="taskbar_task_view">Task view</string>
+    <string name="taskbar_back">Back</string>
+    <string name="taskbar_home">Home</string>
+    <string name="taskbar_hidden_icons">Show hidden icons</string>
+    <string name="taskbar_notifications">Notifications</string>
+    <string name="taskbar_date_time">Date and time</string>
+    <string name="taskbar_calendar">Calendar</string>
+    <string name="taskbar_keep_visible">Keep taskbar visible</string>
+    <string name="taskbar_hide">Hide taskbar</string>
+    <string name="taskbar_app_settings">Escritorio Glass settings</string>
+    <string name="calendar_permission">Calendar</string>
+    <string name="calendar_permission_desc">Shows your next event on the taskbar. Events are only displayed: they are never stored or sent anywhere.</string>
 </resources>

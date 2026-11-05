@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Open-app pill under taskbar icons (6x3 dp; 16x3 dp in accent for the active app). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="2dp" />
+    <solid android:color="#FFFFFFFF" />
+</shape>
