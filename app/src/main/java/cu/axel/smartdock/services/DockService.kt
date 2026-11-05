@@ -165,6 +165,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     private var activityManagerWrapper: ActivityManagerWrapper? = null
     private var orientationValue: String = ""
     private var orientation = -1
+    private var densityDpi = 0
     private lateinit var sharedPreferences: SharedPreferences
     private lateinit var activityManager: ActivityManager
     private lateinit var appsBtn: ImageView
@@ -1604,7 +1605,8 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             adapter.updateApps(apps)
         else
             tasksGv.adapter = DockAppAdapter(context, apps, this, iconPackUtils)
-        // When there are more apps than room the list scrolls: keep the app in front in view
+        // When there are more apps than room the list scrolls: keep the app in front in view,
+        // aligned to whole icons so the first one is never cut in half
         val active = apps.indexOfFirst { it.packageName == AppUtils.currentApp }
         if (active != -1) {
             val visible = max(1, tasksGv.layoutParams.width / Utils.dpToPx(context, TASKBAR_ITEM_WIDTH_DP))
@@ -1618,6 +1620,15 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         orientation = newConfig.orientation
         orientationValue =
             if (orientation == Configuration.ORIENTATION_PORTRAIT) "" else "_landscape"
+        // A new screen scale (density) changes every dp size: rebuild the bar and its windows
+        if (densityDpi != 0 && newConfig.densityDpi != densityDpi) {
+            densityDpi = newConfig.densityDpi
+            if (quickSettingsPanelVisible) hideQuickSettingsPanel()
+            if (powerMenuVisible) hidePowerMenu()
+            restartUI()
+            return
+        }
+        densityDpi = newConfig.densityDpi
         updateRunningTasks()
         updateNavigationBar()
         updateQuickSettings()
@@ -2298,6 +2309,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         windowManager = context.getSystemService(WINDOW_SERVICE) as WindowManager
         GlassController.start(context)
         orientation = context.resources.configuration.orientation
+        densityDpi = context.resources.configuration.densityDpi
         orientationValue =
             if (orientation == Configuration.ORIENTATION_PORTRAIT) "" else "_landscape"
 
@@ -2589,6 +2601,8 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     private fun restartUI() {
         removeAllViews()
         createViews()
+        // The battery receiver outlives the views: hand it the new battery icon
+        if (::batteryReceiver.isInitialized) batteryReceiver.attach(batteryBtn)
         updateBatteryBtn()
         if (sharedPreferences.getBoolean("pin_dock", true))
             pinDock()

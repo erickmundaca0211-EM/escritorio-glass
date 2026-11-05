@@ -11,10 +11,11 @@ import cu.axel.smartdock.utils.Utils
 
 class BatteryStatsReceiver(
     private val context: Context,
-    private val batteryBtn: TextView,
+    private var batteryBtn: TextView,
     var showLevel: Boolean
 ) : BroadcastReceiver() {
     var level = 0
+    private var lastState = true
 
     init {
         val batteryManager = context.applicationContext.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
@@ -30,7 +31,16 @@ class BatteryStatsReceiver(
 
     }
 
+    /** Points the receiver at the new battery view after the bar is rebuilt (e.g. a new screen scale). */
+    fun attach(button: TextView) {
+        batteryBtn = button
+        if (showLevel)
+            batteryBtn.text = "$level%"
+        update(lastState)
+    }
+
     private fun update(isPlugged: Boolean) {
+        lastState = isPlugged
         if (isPlugged)
             batteryBtn.setCompoundDrawablesWithIntrinsicBounds(
                 AppCompatResources.getDrawable(
