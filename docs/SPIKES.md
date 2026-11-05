@@ -17,6 +17,7 @@
 | e | Seguir ventanas libres para barras de título propias | ❌ No viable | — | — |
 | f | Rango real de brillo | ✅ Medido | ✅ `WRITE_SETTINGS` | — |
 | g | Todo en horizontal, incluso apps solo verticales | ✅ Viable | ✅ Overlay con `screenOrientation` | ❌ `ignore-orientation-request` no funciona |
+| h | Que las apps dejen libre el espacio de la barra (Fase 2) | ❌ No viable sin root | ❌ | ❌ Android rechaza la superposición fabricada |
 
 ---
 
@@ -126,6 +127,29 @@ overlay del dock.
 activo. No requiere Shizuku y se revierte quitando la orientación del overlay. Advertencias: si se pierde el permiso
 de superposición, se pierde también el horizontal. Mientras `uiautomator dump` está activo, la pantalla gira un
 instante a vertical y vuelve.
+
+## h) Reservar el espacio de la barra (requisito agregado por Daniel, Fase 2)
+
+> Fecha: 2026-11-05. Pregunta: ¿se puede lograr que las apps a pantalla completa se acomoden encima de la barra,
+> como con la barra de navegación, en vez de quedar tapadas?
+
+Una ventana `TYPE_APPLICATION_OVERLAY` no aporta márgenes (insets) a las demás apps. La idea probada: hacer que
+Android crea que la barra de navegación mide lo mismo que nuestra barra en horizontal.
+
+| Comando / acción | Resultado |
+|---|---|
+| `cmd overlay lookup android android:dimen/navigation_bar_height[_landscape]` | `16dp` (`navigation_bar_frame_height` = 48dp). |
+| `dumpsys window` en horizontal | Margen `navigationBars` = `[0,1168][2712,1220]` (52 px = 16dp); gestos obligatorios 156 px. |
+| `adb shell cmd overlay fabricate ...` | La ayuda dice "Caller must be root". |
+| Herramienta propia como shell (`app_process`) que llama a `IOverlayManager.commit` con una superposición fabricada (`navigation_bar_height_landscape` = 58dp) | Rechazada por el sistema: `IllegalArgumentException: Non-root shell cannot fabricate overlays`. No quedó nada registrado. |
+| Barra oculta con el modo de Smart Dock (franja de 5dp abajo, método "swipe") | Las apps se ven completas, pero deslizar hacia arriba desde el borde lleva al inicio de HyperOS y la barra no vuelve: el borde inferior es de los gestos del sistema. |
+
+**Conclusión:** sin root no hay forma de que las apps reserven el espacio de la barra (Shizuku tiene los mismos
+permisos que el shell, así que tampoco sirve). Una RRO instalada no puede tocar `navigation_bar_height` (no es un
+recurso público) y `wm overscan` ya no existe. Alternativas: ocultar la barra mientras hay una app al frente y
+mostrarla con algo que no choque con los gestos (asa en una esquina, toque en el borde o el mouse en el borde), y
+reducir la escala del escritorio (spike c) para que la barra ocupe menos alto. Las ventanas libres no sirven:
+HyperOS las dibuja a ≈0.57 e ignora el tamaño pedido (spike b).
 
 ---
 
