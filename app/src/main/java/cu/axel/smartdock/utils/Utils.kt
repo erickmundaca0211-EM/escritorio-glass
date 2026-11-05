@@ -135,6 +135,10 @@ object Utils {
         layoutParams.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
         layoutParams.type =
             if (accessibilityWindow) WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY else WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+        // Use the whole screen: in landscape the camera cutout would otherwise push the taskbar
+        // and the panels ~130 px to one side and leave them off-centre
+        layoutParams.layoutInDisplayCutoutMode =
+            WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
         layoutParams.width = displayWidth.coerceAtMost(width)
         layoutParams.height = displayHeight.coerceAtMost(height)
         return layoutParams
