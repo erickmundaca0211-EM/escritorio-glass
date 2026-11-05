@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Debug-only phase 0 spikes. Not translated on purpose. -->
-<resources>
-    <string name="spike_activity_label">EG Pruebas</string>
-    <string name="spike_window_tracker_label">EG Pruebas (ventanas)</string>
-    <string name="spike_window_tracker_description">Prueba de la Fase 0: registra solo la posición y el tamaño de las ventanas (nunca su contenido). Desactívala después de la prueba.</string>
-</resources>
