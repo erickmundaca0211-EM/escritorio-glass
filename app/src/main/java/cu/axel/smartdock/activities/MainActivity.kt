@@ -9,6 +9,7 @@ import android.provider.Settings
 import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
+import android.view.View
 import android.widget.Button
 import android.widget.Toast
 import android.widget.ViewSwitcher
@@ -16,6 +17,10 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.edit
 import androidx.core.net.toUri
+import androidx.core.view.updatePadding
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentManager
+import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.PreferenceManager
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -27,6 +32,7 @@ import cu.axel.smartdock.fragments.PreferencesFragment
 import cu.axel.smartdock.services.NotificationService
 import cu.axel.smartdock.utils.ColorUtils
 import cu.axel.smartdock.utils.DeviceUtils
+import cu.axel.smartdock.utils.Utils
 import rikka.shizuku.Shizuku
 import kotlin.reflect.KFunction0
 
@@ -56,6 +62,19 @@ class MainActivity : AppCompatActivity() {
         if (launchCount == 5) {
             DonateDialog(this)
         }
+        // The pinned dock is an overlay drawn on top of this activity, so the last settings
+        // (e.g. "Help and about" with the credits) could end up hidden behind it
+        supportFragmentManager.registerFragmentLifecycleCallbacks(object :
+            FragmentManager.FragmentLifecycleCallbacks() {
+            override fun onFragmentViewCreated(
+                fm: FragmentManager, f: Fragment, v: View, savedInstanceState: Bundle?
+            ) {
+                if (f !is PreferenceFragmentCompat) return
+                val dockHeight = sharedPreferences.getString("dock_height", "56")?.toIntOrNull() ?: 56
+                f.listView.clipToPadding = false
+                f.listView.updatePadding(bottom = Utils.dpToPx(this@MainActivity, dockHeight + 16))
+            }
+        }, true)
         supportFragmentManager.beginTransaction()
             .replace(R.id.settings_container, PreferencesFragment())
             .commit()

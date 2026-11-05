@@ -64,7 +64,8 @@ adb shell wm density reset                                    # RESCATE si la es
 Etiqueta de logs de la app: `EG`. Nunca registres contenido de notificaciones ni texto de otras apps en los logs.
 
 Tras reinstalar, si el dock no aparece: concede `SYSTEM_ALERT_WINDOW` (arriba) y reinicia el servicio de accesibilidad
-(desactivar y activar en la app). El `applicationId` es `pe.vega.escritorioglass`, pero el paquete de las clases
+(desactivar y activar en la app). HyperOS a veces revoca el permiso **unos segundos después** de instalar: espera ~30 s
+y comprueba con `adb shell appops get pe.vega.escritorioglass SYSTEM_ALERT_WINDOW` que diga `allow`. El `applicationId` es `pe.vega.escritorioglass`, pero el paquete de las clases
 sigue siendo `cu.axel.smartdock` (para facilitar traer cambios del original).
 
 ## Reglas de seguridad (no negociables)
