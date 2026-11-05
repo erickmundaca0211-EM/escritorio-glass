@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Escritorio y menú Inicio</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer}
+input{font:inherit}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+a{color:#9BD5FF}a:hover{color:#C9E9FF}
+</style>
+</helmet>
+<div style="position: relative; width: 1334px; height: 600px; overflow: hidden; font-family: 'Inter', system-ui, sans-serif; color: #FFFFFF; background: #101B2C">
+
+<svg aria-hidden="true" width="1334" height="600" viewBox="0 0 1334 600" style="position: absolute; left: 0; top: 0">
+<rect width="1334" height="600" fill="#101B2C"></rect>
+<path d="M560 -20 C700 90 860 120 1000 200 C1140 280 1250 250 1354 190 L1354 -20 Z" fill="#E9D7BF"></path>
+<path d="M760 -20 C860 50 980 80 1090 150 C1200 220 1280 200 1354 160 L1354 -20 Z" fill="#CFA67D"></path>
+<path d="M940 -20 C1020 30 1110 60 1190 110 C1260 150 1310 140 1354 120 L1354 -20 Z" fill="#8E512E"></path>
+<path d="M1354 330 C1240 360 1150 440 1100 520 C1070 570 1080 600 1080 620 L1354 620 Z" fill="#8E512E"></path>
+<path d="M1354 400 C1270 430 1210 500 1190 620 L1354 620 Z" fill="#E9D7BF"></path>
+<path d="M-20 380 C120 330 260 420 330 520 C360 570 350 600 340 620 L-20 620 Z" fill="#1B2A41"></path>
+<path d="M420 -20 C560 140 700 160 860 260 C980 330 1100 330 1354 300" fill="none" stroke="#E9D7BF" stroke-opacity="0.35" stroke-width="1.5"></path>
+</svg>
+
+<div style="position: absolute; left: 16px; top: 16px; display: flex; flex-direction: column; gap: 8px">
+<button style="width: 80px; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 4px; border-radius: 10px">
+<span style="width: 42px; height: 42px; border-radius: 12px; background: #D7A33A; color: #1F1A10; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255,255,255,0.45), 0 4px 12px rgba(0,0,0,0.35)"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6H9l2 2h8.5A1.5 1.5 0 0 1 21 9.5v8A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z"></path></svg></span>
+<span style="font-size: 12px; font-weight: 500; text-shadow: 0 1px 3px rgba(0,0,0,0.85)">Archivos</span>
+</button>
+<button style="width: 80px; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 4px; border-radius: 10px">
+<span style="width: 42px; height: 42px; border-radius: 12px; background: #3B82C4; color: #FFFFFF; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255,255,255,0.45), 0 4px 12px rgba(0,0,0,0.35)"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18"></path><path d="M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"></path></svg></span>
+<span style="font-size: 12px; font-weight: 500; text-shadow: 0 1px 3px rgba(0,0,0,0.85)">Navegador</span>
+</button>
+<button style="width: 80px; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 4px; border-radius: 10px">
+<span style="width: 42px; height: 42px; border-radius: 12px; background: #5B6170; color: #FFFFFF; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255,255,255,0.45), 0 4px 12px rgba(0,0,0,0.35)"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M12 2.8l1.6 2.3 2.8-.5.9 2.7 2.6 1.1-.6 2.7 1.9 2.1-1.9 2.1.6 2.7-2.6 1.1-.9 2.7-2.8-.5L12 21.2l-1.6-2.3-2.8.5-.9-2.7-2.6-1.1.6-2.7L2.8 12l1.9-2.1-.6-2.7 2.6-1.1.9-2.7 2.8.5z"></path></svg></span>
+<span style="font-size: 12px; font-weight: 500; text-shadow: 0 1px 3px rgba(0,0,0,0.85)">Ajustes</span>
+</button>
+</div>
+
+<div role="dialog" aria-label="Menú Inicio" style="position: absolute; left: 387px; top: 96px; width: 560px; height: 434px; border-radius: 22px; overflow: hidden; display: flex; flex-direction: column; background: rgba(18,24,36,{{tint}}); backdrop-filter: blur({{blur}}px) saturate(170%); -webkit-backdrop-filter: blur({{blur}}px) saturate(170%); border: 1px solid rgba(255,255,255,0.18); box-shadow: inset 0 1px 0 rgba(255,255,255,0.38), inset 0 -1px 0 rgba(255,255,255,0.06), 0 24px 60px rgba(0,0,0,0.45)">
+<div aria-hidden="true" style="position: absolute; left: 0; top: 0; right: 0; bottom: 0; pointer-events: none; background: radial-gradient(120% 55% at 12% 0%, rgba(255,255,255,0.16), rgba(255,255,255,0) 60%), linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0) 40%)"></div>
+<div style="position: relative; flex: 1 1 auto; padding: 14px 22px 0; display: flex; flex-direction: column; gap: 10px">
+<label style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 14px; border-radius: 18px; background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.16)">
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"></circle><path d="M20 20l-4.2-4.2"></path></svg>
+<span class="sr-only">Buscar</span>
+<input type="search" placeholder="Buscar apps, ajustes y archivos" style="flex: 1 1 auto; min-width: 0; background: none; border: 0; outline: none; color: #FFFFFF; font-size: 13px">
+</label>
+<div style="display: flex; align-items: center; justify-content: space-between; height: 22px">
+<h2 style="margin: 0; font-size: 13px; font-weight: 600">Ancladas</h2>
+<button style="font-size: 12px; padding: 4px 10px; border-radius: 6px; background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.12)">Todas las apps ›</button>
+</div>
+<div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px 4px">
+<button style="display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 6px 0; border-radius: 10px"><span style="width: 34px; height: 34px; border-radius: 10px; background: #2E9E6A; color: #FFFFFF; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255,255,255,0.4)"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H10l-4.5 3.5v-3.5H4z"></path></svg></span><span style="font-size: 11.5px">Mensajes</span></button>
+<button style="display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 6px 0; border-radius: 10px"><span style="width: 34px; height: 34px; border-radius: 10px; background: #3B82C4; color: #FFFFFF; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255,255,255,0.4)"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18"></path><path d="M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"></path></svg></span><span style="font-size: 11.5px">Navegador</span></button>
+<button style="display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 6px 0; border-radius: 10px"><span style="width: 34px; height: 34px; border-radius: 10px; background: #C2573A; color: #FFFFFF; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255,255,255,0.4)"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5.5" width="18" height="13" rx="2"></rect><path d="M3.5 7l8.5 6 8.5-6"></path></svg></span><span style="font-size: 11.5px">Correo</span></button>
+<button style="display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 6px 0; border-radius: 10px"><span style="width: 34px; height: 34px; border-radius: 10px; background: #5B6170; color: #FFFFFF; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255,255,255,0.4)"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3.5L9 5.5h6L16.5 8H20v11H4z"></path><circle cx="12" cy="13" r="3.5"></circle></svg></span><span style="font-size: 11.5px">Cámara</span></button>
+<button style="display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 6px 0; border-radius: 10px"><span style="width: 34px; height: 34px; border-radius: 10px; background: #B4497D; color: #FFFFFF; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255,255,255,0.4)"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="2"></rect><circle cx="9" cy="9.5" r="1.6"></circle><path d="M4 17l5-4.5 4 3.5 3-2.5 4 3.5"></path></svg></span><span style="font-size: 11.5px">Galería</span></button>
+<button style="display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 6px 0; border-radius: 10px"><span style="width: 34px; height: 34px; border-radius: 10px; background: #D2652F; color: #FFFFFF; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255,255,255,0.4)"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17.5V6l10-2v11.5"></path><circle cx="6.8" cy="17.5" r="2.3"></circle><circle cx="16.8" cy="15.5" r="2.3"></circle></svg></span><span style="font-size: 11.5px">Música</span></button>
+<button style="display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 6px 0; border-radius: 10px"><span style="width: 34px; height: 34px; border-radius: 10px; background: #D7A33A; color: #1F1A10; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255,255,255,0.45)"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6H9l2 2h8.5A1.5 1.5 0 0 1 21 9.5v8A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z"></path></svg></span><span style="font-size: 11.5px">Archivos</span></button>
+<button style="display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 6px 0; border-radius: 10px"><span style="width: 34px; height: 34px; border-radius: 10px; background: #3E7BD9; color: #FFFFFF; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255,255,255,0.4)"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"></rect><path d="M3.5 9.5h17M8 3v4M16 3v4"></path></svg></span><span style="font-size: 11.5px">Calendario</span></button>
+<button style="display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 6px 0; border-radius: 10px"><span style="width: 34px; height: 34px; border-radius: 10px; background: #4A5568; color: #FFFFFF; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255,255,255,0.4)"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"></rect><path d="M8 7h8"></path><path d="M8.5 12h.01M12 12h.01M15.5 12h.01M8.5 15.5h.01M12 15.5h.01M15.5 15.5h.01"></path></svg></span><span style="font-size: 11.5px">Calculadora</span></button>
+<button style="display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 6px 0; border-radius: 10px"><span style="width: 34px; height: 34px; border-radius: 10px; background: #C9A227; color: #1F1A10; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255,255,255,0.45)"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h9l3 3v14H6z"></path><path d="M9 10h6M9 13.5h6M9 17h4"></path></svg></span><span style="font-size: 11.5px">Notas</span></button>
+<button style="display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 6px 0; border-radius: 10px"><span style="width: 34px; height: 34px; border-radius: 10px; background: #2F9C8F; color: #FFFFFF; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255,255,255,0.4)"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 6.5l5.5-2 6 2 5.5-2v13l-5.5 2-6-2-5.5 2z"></path><path d="M9 4.5v13M15 6.5v13"></path></svg></span><span style="font-size: 11.5px">Mapas</span></button>
+<button style="display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 6px 0; border-radius: 10px"><span style="width: 34px; height: 34px; border-radius: 10px; background: #5B6170; color: #FFFFFF; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255,255,255,0.4)"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M12 2.8l1.6 2.3 2.8-.5.9 2.7 2.6 1.1-.6 2.7 1.9 2.1-1.9 2.1.6 2.7-2.6 1.1-.9 2.7-2.8-.5L12 21.2l-1.6-2.3-2.8.5-.9-2.7-2.6-1.1.6-2.7L2.8 12l1.9-2.1-.6-2.7 2.6-1.1.9-2.7 2.8.5z"></path></svg></span><span style="font-size: 11.5px">Ajustes</span></button>
+<button style="display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 6px 0; border-radius: 10px"><span style="width: 34px; height: 34px; border-radius: 10px; background: #B83A32; color: #FFFFFF; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255,255,255,0.4)"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"></rect><path d="M10.5 9.3v5.4l4.5-2.7z"></path></svg></span><span style="font-size: 11.5px">Videos</span></button>
+<button style="display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 6px 0; border-radius: 10px"><span style="width: 34px; height: 34px; border-radius: 10px; background: #6C5BD4; color: #FFFFFF; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255,255,255,0.4)"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="9" r="3.5"></circle><path d="M5 19.5c1.2-3.2 4-4.8 7-4.8s5.8 1.6 7 4.8"></path></svg></span><span style="font-size: 11.5px">Contactos</span></button>
+<button style="display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 6px 0; border-radius: 10px"><span style="width: 34px; height: 34px; border-radius: 10px; background: #374151; color: #FFFFFF; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255,255,255,0.4)"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 7.5V12l3 2"></path></svg></span><span style="font-size: 11.5px">Reloj</span></button>
+<button style="display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 6px 0; border-radius: 10px"><span style="width: 34px; height: 34px; border-radius: 10px; background: #2D8C5A; color: #FFFFFF; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255,255,255,0.4)"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1 12H6z"></path><path d="M9 8V6.5a3 3 0 0 1 6 0V8"></path></svg></span><span style="font-size: 11.5px">Tienda</span></button>
+<button style="display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 6px 0; border-radius: 10px"><span style="width: 34px; height: 34px; border-radius: 10px; background: #A8384A; color: #FFFFFF; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255,255,255,0.4)"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5.5 11a6.5 6.5 0 0 0 13 0"></path><path d="M12 17.5V21"></path></svg></span><span style="font-size: 11.5px">Grabadora</span></button>
+<button style="display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 6px 0; border-radius: 10px"><span style="width: 34px; height: 34px; border-radius: 10px; background: #3A8FD0; color: #FFFFFF; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255,255,255,0.4)"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18.5h10a4 4 0 0 0 .6-8 6 6 0 0 0-11.4 1.6A3.3 3.3 0 0 0 7 18.5z"></path></svg></span><span style="font-size: 11.5px">Clima</span></button>
+</div>
+<div style="display: flex; align-items: center; justify-content: space-between; height: 20px; margin-top: 2px">
+<h2 style="margin: 0; font-size: 13px; font-weight: 600">Recomendado</h2>
+<button style="font-size: 12px; padding: 3px 10px; border-radius: 6px; background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.12)">Más ›</button>
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+<button style="display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 10px; text-align: left; background: rgba(255,255,255,0.06)">
+<span style="width: 30px; height: 30px; border-radius: 8px; background: #2D8C5A; color: #FFFFFF; display: flex; align-items: center; justify-content: center; flex: 0 0 auto"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M4 9.5h16M4 14.5h16M10 4v16"></path></svg></span>
+<span style="display: flex; flex-direction: column; min-width: 0"><span style="font-size: 12.5px; font-weight: 500">Informe_mensual.xlsx</span><span style="font-size: 11.5px; color: rgba(255,255,255,0.82)">Hace 12 min</span></span>
+</button>
+<button style="display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 10px; text-align: left; background: rgba(255,255,255,0.06)">
+<span style="width: 30px; height: 30px; border-radius: 8px; background: #C2573A; color: #FFFFFF; display: flex; align-items: center; justify-content: center; flex: 0 0 auto"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 3.5h8l3.5 3.5v13.5h-11.5z"></path><path d="M14.5 3.5V7H18"></path></svg></span>
+<span style="display: flex; flex-direction: column; min-width: 0"><span style="font-size: 12.5px; font-weight: 500">Presentación.pdf</span><span style="font-size: 11.5px; color: rgba(255,255,255,0.82)">Ayer, 18:40</span></span>
+</button>
+</div>
+</div>
+<div style="position: relative; height: 52px; flex: 0 0 auto; padding: 0 22px; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.10); background: rgba(0,0,0,0.14)">
+<button style="display: flex; align-items: center; gap: 10px; padding: 4px 8px 4px 4px; border-radius: 8px">
+<span style="width: 30px; height: 30px; border-radius: 50%; background: #E9D7BF; color: #2A1C0E; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 13px">D</span>
+<span style="font-size: 13px; font-weight: 500">Daniel</span>
+</button>
+<button aria-label="Apagar o bloquear" style="width: 44px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center">
+<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v8"></path><path d="M7 6.5a7.5 7.5 0 1 0 10 0"></path></svg>
+</button>
+</div>
+</div>
+
+<nav aria-label="Barra de tareas" style="position: absolute; left: 10px; right: 10px; bottom: 8px; height: 50px; border-radius: 18px; overflow: hidden; display: flex; align-items: center; padding: 0 8px; box-sizing: border-box; background: rgba(18,24,36,{{tint}}); backdrop-filter: blur({{blur}}px) saturate(170%); -webkit-backdrop-filter: blur({{blur}}px) saturate(170%); border: 1px solid rgba(255,255,255,0.16); box-shadow: inset 0 1px 0 rgba(255,255,255,0.32), 0 10px 30px rgba(0,0,0,0.35)">
+<div aria-hidden="true" style="position: absolute; left: 0; top: 0; right: 0; bottom: 0; pointer-events: none; background: radial-gradient(80% 120% at 50% 0%, rgba(255,255,255,0.12), rgba(255,255,255,0) 70%)"></div>
+<div style="position: relative; flex: 1 1 0; display: flex; align-items: center">
+<button aria-label="Clima: 20 grados, nublado" style="display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 10px; border-radius: 10px">
+<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F3D9A8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18.5h10a4 4 0 0 0 .6-8 6 6 0 0 0-11.4 1.6A3.3 3.3 0 0 0 7 18.5z"></path></svg>
+<span style="display: flex; flex-direction: column; align-items: flex-start; line-height: 15px"><span style="font-size: 12.5px; font-weight: 600">20 °C</span><span style="font-size: 11.5px; color: rgba(255,255,255,0.82)">Nublado</span></span>
+</button>
+</div>
+<div style="position: relative; flex: 0 0 auto; display: flex; align-items: center; gap: 2px">
+<button aria-label="Inicio" aria-pressed="true" style="position: relative; width: 44px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.14); box-shadow: inset 0 1px 0 rgba(255,255,255,0.22)">
+<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24"><path d="M12 2.8L15.2 6L12 9.2L8.8 6Z" fill="{{accent}}"></path><path d="M18 8.8L21.2 12L18 15.2L14.8 12Z" fill="{{accent}}"></path><path d="M12 14.8L15.2 18L12 21.2L8.8 18Z" fill="{{accent}}"></path><path d="M6 8.8L9.2 12L6 15.2L2.8 12Z" fill="{{accent}}"></path></svg>
+</button>
+<button aria-label="Buscar" style="width: 44px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center">
+<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"></circle><path d="M20 20l-4.2-4.2"></path></svg>
+</button>
+<button aria-label="Vista de tareas" style="width: 44px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center">
+<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="10" rx="2"></rect><path d="M8 18.5h11a2 2 0 0 0 2-2V9"></path></svg>
+</button>
+<button aria-label="Navegador, abierta" style="position: relative; width: 44px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center">
+<span style="width: 28px; height: 28px; border-radius: 8px; background: #3B82C4; color: #FFFFFF; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255,255,255,0.4)"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18"></path><path d="M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"></path></svg></span>
+<span aria-hidden="true" style="position: absolute; bottom: 2px; left: 19px; width: 6px; height: 3px; border-radius: 2px; background: rgba(255,255,255,0.75)"></span>
+</button>
+<button aria-label="Archivos" style="position: relative; width: 44px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center">
+<span style="width: 28px; height: 28px; border-radius: 8px; background: #D7A33A; color: #1F1A10; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255,255,255,0.45)"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6H9l2 2h8.5A1.5 1.5 0 0 1 21 9.5v8A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z"></path></svg></span>
+</button>
+<button aria-label="Mensajes, abierta" style="position: relative; width: 44px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center">
+<span style="width: 28px; height: 28px; border-radius: 8px; background: #2E9E6A; color: #FFFFFF; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255,255,255,0.4)"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H10l-4.5 3.5v-3.5H4z"></path></svg></span>
+<span aria-hidden="true" style="position: absolute; bottom: 2px; left: 19px; width: 6px; height: 3px; border-radius: 2px; background: rgba(255,255,255,0.75)"></span>
+</button>
+<button aria-label="Correo" style="position: relative; width: 44px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center">
+<span style="width: 28px; height: 28px; border-radius: 8px; background: #C2573A; color: #FFFFFF; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255,255,255,0.4)"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5.5" width="18" height="13" rx="2"></rect><path d="M3.5 7l8.5 6 8.5-6"></path></svg></span>
+</button>
+<button aria-label="Música" style="position: relative; width: 44px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center">
+<span style="width: 28px; height: 28px; border-radius: 8px; background: #D2652F; color: #FFFFFF; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255,255,255,0.4)"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17.5V6l10-2v11.5"></path><circle cx="6.8" cy="17.5" r="2.3"></circle><circle cx="16.8" cy="15.5" r="2.3"></circle></svg></span>
+</button>
+</div>
+<div style="position: relative; flex: 1 1 0; display: flex; align-items: center; justify-content: flex-end; gap: 2px">
+<button aria-label="Mostrar íconos ocultos" style="width: 32px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center">
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 14l5-5 5 5"></path></svg>
+</button>
+<button aria-label="Ajustes rápidos: Wi-Fi, volumen y batería 78 por ciento" style="display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px; border-radius: 10px">
+<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 9a14 14 0 0 1 19 0"></path><path d="M5.5 12.5a9.5 9.5 0 0 1 13 0"></path><path d="M8.7 16a5 5 0 0 1 6.6 0"></path><circle cx="12" cy="19.2" r="0.9" fill="currentColor"></circle></svg>
+<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L12 6v12l-4.5-3.5H4z"></path><path d="M15.5 9a4 4 0 0 1 0 6"></path><path d="M18 6.5a7.5 7.5 0 0 1 0 11"></path></svg>
+<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="7.5" width="17" height="9" rx="2.2"></rect><path d="M21.5 10.5v3"></path><rect x="4.5" y="9.5" width="10" height="5" rx="1" fill="currentColor" stroke="none"></rect></svg>
+</button>
+<button aria-label="Fecha y hora" style="display: flex; flex-direction: column; align-items: flex-end; justify-content: center; height: 40px; padding: 0 10px; border-radius: 10px; line-height: 16px">
+<span style="font-size: 12.5px; font-weight: 500">21:45</span>
+<span style="font-size: 12px">04/11/2026</span>
+</button>
+<button aria-label="Notificaciones, 3 nuevas" style="position: relative; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center">
+<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"></path><path d="M10 20.5a2 2 0 0 0 4 0"></path></svg>
+<span style="position: absolute; top: 5px; right: 4px; min-width: 16px; height: 16px; padding: 0 4px; box-sizing: border-box; border-radius: 8px; background: {{accent}}; color: #0B1726; font-size: 10.5px; font-weight: 700; line-height: 16px; text-align: center">3</span>
+</button>
+</div>
+</nav>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#6CC4FF","options":["#6CC4FF","#7FD1B9","#F2B66D","#C4A1FF"],"section":"Vidrio"},"blur":{"editor":"range","default":24,"min":0,"max":40,"step":1,"unit":"px","section":"Vidrio"},"tint":{"editor":"range","default":0.62,"min":0.35,"max":0.85,"step":0.01,"section":"Vidrio"},"$preview":{"width":1334,"height":600}}'>
+class Component extends DCLogic {
+renderVals() {
+return {
+accent: this.props.accent ?? '#6CC4FF',
+blur: this.props.blur ?? 24,
+tint: this.props.tint ?? 0.62
+};
+}
+}
+</script>
+</body>
+</html>
