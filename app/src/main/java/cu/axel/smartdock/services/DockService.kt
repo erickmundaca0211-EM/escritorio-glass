@@ -1606,7 +1606,11 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             tasksGv.adapter = DockAppAdapter(context, apps, this, iconPackUtils)
         // When there are more apps than room the list scrolls: keep the app in front in view
         val active = apps.indexOfFirst { it.packageName == AppUtils.currentApp }
-        if (active != -1) tasksGv.scrollToPosition(active)
+        if (active != -1) {
+            val visible = max(1, tasksGv.layoutParams.width / Utils.dpToPx(context, TASKBAR_ITEM_WIDTH_DP))
+            (tasksGv.layoutManager as? LinearLayoutManager)
+                ?.scrollToPositionWithOffset(max(0, active - visible + 1), 0)
+        }
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
