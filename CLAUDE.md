@@ -68,6 +68,16 @@ Tras reinstalar, si el dock no aparece: concede `SYSTEM_ALERT_WINDOW` (arriba) y
 y comprueba con `adb shell appops get pe.vega.escritorioglass SYSTEM_ALERT_WINDOW` que diga `allow`. El `applicationId` es `pe.vega.escritorioglass`, pero el paquete de las clases
 sigue siendo `cu.axel.smartdock` (para facilitar traer cambios del original).
 
+Si tras actualizar el servicio queda en "Binding services" (`adb shell dumpsys accessibility`) y el dock no aparece:
+`adb shell am force-stop pe.vega.escritorioglass` y luego desactivar y activar el servicio. El `force-stop` también
+desconecta el lector de notificaciones y HyperOS no lo reconecta solo (la campana queda sin contador); para
+reconectarlo: `adb shell cmd notification disallow_listener pe.vega.escritorioglass/cu.axel.smartdock.services.NotificationService`
+y después `allow_listener` con el mismo componente. Si el servicio se cierra por un error, HyperOS lo desactiva
+(`Crashed services` en `dumpsys accessibility`): revisa `adb logcat -b crash`.
+
+En una terminal nueva de PowerShell, `JAVA_HOME` y `ANDROID_HOME` pueden no estar cargados: defínelos antes de
+`gradlew` (JDK 21 y `%LOCALAPPDATA%\Android\Sdk`).
+
 ## Reglas de seguridad (no negociables)
 
 La versión original de Smart Dock **no tiene permiso de internet**; esa es la principal garantía de privacidad.
