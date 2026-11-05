@@ -74,6 +74,24 @@ y se restaura al salir del modo escritorio; se ve como `QuickSettings.png`.
 
 **Aceptación:** se puede trabajar con 2 ventanas a la vez en horizontal; cambiar la escala muestra más contenido.
 
+### Adelantado el 2026-11-05 (rama `fase-5-ventanas`, a pedido de Daniel)
+Sin root, Android no deja que las apps reserven el espacio de la barra (spike h). Daniel eligió: apps en ventana y
+la barra que se esconde solo con apps a pantalla completa.
+- **Ventanas por defecto:** lo que se abre desde Escritorio Glass usa el modo "standard" (ventana libre); los juegos
+  siguen a pantalla completa. HyperOS decide el tamaño de la ventana y, si la app ya tenía una tarea a pantalla
+  completa, la reutiliza (hay que cerrarla una vez desde Recientes).
+- **Escala de las apps** (Apariencia > Escritorio): baja la densidad mientras el escritorio está activo para que
+  apps y ventanas muestren más contenido; se restaura al apagarlo (`DesktopScale`, vía `PrivilegedActions`).
+  La barra y sus paneles conservan su propia escala (no bajan de 70 %). Probado en el POCO: 62 % = 322 dpi.
+  Advertencia: si se desinstala la app con la escala activa, la densidad queda cambiada (se arregla en Ajustes >
+  Pantalla o con `adb shell wm density reset`).
+- **Barra oculta con apps a pantalla completa:** al detectar una app a pantalla completa (tipo y tamaño de su
+  ventana, nunca su contenido) la barra baja a 1 s; vuelve con el mouse en el borde de abajo y se esconde 1 s
+  después de que el mouse sale; al volver al inicio o a una ventana queda fija. Con el dedo, el gesto de inicio
+  la trae de vuelta.
+- Pendiente para la Fase 5 completa: tamaño exacto de ventanas y maximizar desde la barra (requieren Shizuku), y el
+  indicador flotante de escala. El control deslizante de la Fase 4 usará `DesktopScale`.
+
 ## Fase 6 — Pulido y versión 1.0
 - Animaciones (resortes suaves), respuesta háptica, pantalla de bienvenida que guía permisos
   (configuración restringida, accesibilidad, ADB/Shizuku).

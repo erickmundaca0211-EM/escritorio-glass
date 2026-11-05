@@ -146,6 +146,13 @@ Se usa a través de `DeviceUtils.putSecureSetting`, `putGlobalSetting` y `putSys
 No hay una clase central ni una lista blanca: cada llamada arma su propio texto. En el POCO (sin root) todas estas
 llamadas fallan sin efecto.
 
+### Clase central de Escritorio Glass (desde la Fase 5)
+`system/PrivilegedActions.kt` es el único lugar donde Escritorio Glass ejecuta acciones privilegiadas nuevas. La
+lista blanca es el enum `Action` (por ahora: forzar y quitar la densidad de pantalla con `WRITE_SECURE_SETTINGS`,
+validando el rango 50–200 % de la densidad física). `system/DesktopScale.kt` la usa para la "Escala de las apps" y
+guarda la densidad previa para restaurarla. Las llamadas heredadas de Smart Dock de arriba siguen donde estaban;
+pasarlas a esta clase queda pendiente.
+
 ## Nombres de paquete fijos en el código (importante para el renombrado)
 
 El `namespace` de Kotlin (`cu.axel.smartdock`) puede quedarse igual. Lo que cambia es el `applicationId`, y estas
