@@ -19,6 +19,8 @@
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
     <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" />
     <uses-permission android:name="android.permission.WRITE_SETTINGS" />
+    <!-- Escritorio Glass (optional): next event on the taskbar; only displayed, never stored or sent -->
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
 
     <application
         android:name=".App"

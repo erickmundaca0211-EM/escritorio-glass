@@ -32,10 +32,14 @@ import cu.axel.smartdock.fragments.PreferencesFragment
 import cu.axel.smartdock.services.NotificationService
 import cu.axel.smartdock.utils.ColorUtils
 import cu.axel.smartdock.utils.DeviceUtils
+import cu.axel.smartdock.utils.CalendarUtils
+import android.Manifest
 import cu.axel.smartdock.utils.Utils
 import rikka.shizuku.Shizuku
 import kotlin.reflect.KFunction0
 
+
+private const val CALENDAR_REQUEST_CODE = 71
 
 class MainActivity : AppCompatActivity() {
     private lateinit var sharedPreferences: SharedPreferences
@@ -48,6 +52,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var recentAppsBtn: MaterialButton
     private lateinit var secureBtn: MaterialButton
     private lateinit var shizukuBtn: MaterialButton
+    private lateinit var calendarBtn: MaterialButton
     private var canDrawOverOtherApps = false
     private var hasStoragePermission = false
     private var settingsOverlaysAllowed = false
@@ -137,6 +142,7 @@ class MainActivity : AppCompatActivity() {
         recentAppsBtn = view.findViewById(R.id.btn_manage_recent_apps)
         secureBtn = view.findViewById(R.id.btn_manage_secure)
         shizukuBtn = view.findViewById(R.id.btn_grant_shizuku)
+        calendarBtn = view.findViewById(R.id.btn_grant_calendar)
         builder.setView(view)
         permissionsDialog = builder.create()
         overlayBtn.setOnClickListener {
@@ -182,6 +188,14 @@ class MainActivity : AppCompatActivity() {
                 hasShizukuPermission
             )
         }
+        calendarBtn.setOnClickListener {
+            showPermissionInfoDialog(
+                R.string.calendar_permission,
+                R.string.calendar_permission_desc,
+                ::requestCalendarPermission,
+                CalendarUtils.hasPermission(this)
+            )
+        }
         requiredBtn.setOnClickListener { viewSwitcher.showPrevious() }
         optionalBtn.setOnClickListener { viewSwitcher.showNext() }
         updatePermissionsStatus()
@@ -198,6 +212,19 @@ class MainActivity : AppCompatActivity() {
 
     private fun requestRecentAppsPermission() {
         startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+    }
+
+    private fun requestCalendarPermission() {
+        requestPermissions(arrayOf(Manifest.permission.READ_CALENDAR), CALENDAR_REQUEST_CODE)
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int, permissions: Array<out String>, grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == CALENDAR_REQUEST_CODE && ::permissionsDialog.isInitialized &&
+            permissionsDialog.isShowing
+        ) updatePermissionsStatus()
     }
 
     private fun requestShizukuPermission() {
@@ -249,6 +276,10 @@ class MainActivity : AppCompatActivity() {
         if (hasWriteSettingsPermission) {
             secureBtn.setIconResource(R.drawable.ic_granted)
             secureBtn.iconTint = ColorStateList.valueOf(ColorUtils.getThemeColors(this, false)[0])
+        }
+        if (CalendarUtils.hasPermission(this)) {
+            calendarBtn.setIconResource(R.drawable.ic_granted)
+            calendarBtn.iconTint = ColorStateList.valueOf(ColorUtils.getThemeColors(this, false)[0])
         }
         hasShizukuPermission = DeviceUtils.hasShizukuPermission()
         if (hasShizukuPermission) {
