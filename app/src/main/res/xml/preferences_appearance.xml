@@ -72,6 +72,24 @@
             android:summary="@string/glass_quality_summary" />
     </PreferenceCategory>
 
+    <!-- Escritorio Glass: desktop behaviour (docs/PLAN.md, Fase 5). Read by DesktopScale and DockService. -->
+    <PreferenceCategory android:title="@string/desktop_category">
+        <SeekBarPreference
+            android:defaultValue="100"
+            android:key="app_scale"
+            android:max="100"
+            android:summary="@string/app_scale_summary"
+            android:title="@string/app_scale_title"
+            app:min="50"
+            app:showSeekBarValue="true" />
+
+        <SwitchPreferenceCompat
+            android:defaultValue="true"
+            android:key="autohide_fullscreen"
+            android:summary="@string/autohide_fullscreen_summary"
+            android:title="@string/autohide_fullscreen_title" />
+    </PreferenceCategory>
+
     <PreferenceCategory android:title="@string/dock">
         <SwitchPreferenceCompat
             android:key="override_dock_background_alpha"

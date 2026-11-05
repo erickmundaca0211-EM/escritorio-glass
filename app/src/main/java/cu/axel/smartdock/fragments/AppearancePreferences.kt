@@ -27,6 +27,8 @@ import androidx.core.graphics.toColorInt
 import com.google.android.material.slider.LabelFormatter
 import cu.axel.smartdock.preferences.SliderPreference
 import cu.axel.smartdock.utils.DeviceUtils
+import cu.axel.smartdock.system.DesktopScale
+import cu.axel.smartdock.system.PrivilegedActions
 
 class AppearancePreferences : PreferenceFragmentCompat() {
     private lateinit var mainColorPref: Preference
@@ -68,6 +70,16 @@ class AppearancePreferences : PreferenceFragmentCompat() {
         findPreference<Preference>("dock_layout")!!.setOnPreferenceClickListener {
             DockLayoutDialog(requireContext())
             false
+        }
+
+        // The app scale changes the screen density: only possible with WRITE_SECURE_SETTINGS
+        val appScale = findPreference<Preference>(DesktopScale.KEY_APP_SCALE)!!
+        if (!PrivilegedActions.isAllowed(
+                requireContext(), PrivilegedActions.Action.SET_DISPLAY_DENSITY
+            )
+        ) {
+            appScale.isEnabled = false
+            appScale.setSummary(R.string.app_scale_needs_permission)
         }
     }
 

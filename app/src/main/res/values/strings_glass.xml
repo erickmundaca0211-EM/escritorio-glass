@@ -31,4 +31,10 @@
     <string name="taskbar_app_settings">Escritorio Glass settings</string>
     <string name="calendar_permission">Calendar</string>
     <string name="calendar_permission_desc">Shows your next event on the taskbar. Events are only displayed: they are never stored or sent anywhere.</string>
+    <string name="desktop_category">Desktop</string>
+    <string name="app_scale_title">App scale (%)</string>
+    <string name="app_scale_summary">Makes apps and windows smaller while the desktop is on, so more content fits. 100 = unchanged; your own scale comes back when the desktop turns off. The taskbar keeps its size.</string>
+    <string name="app_scale_needs_permission">Needs the secure settings permission (Permissions, Optional)</string>
+    <string name="autohide_fullscreen_title">Hide the taskbar over full-screen apps</string>
+    <string name="autohide_fullscreen_summary">It slides away after 1 second; move the mouse to the bottom edge to bring it back</string>
 </resources>

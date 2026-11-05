@@ -30,4 +30,10 @@
     <string name="taskbar_app_settings">Ajustes de Escritorio Glass</string>
     <string name="calendar_permission">Calendario</string>
     <string name="calendar_permission_desc">Muestra tu próximo evento en la barra de tareas. Los eventos solo se muestran: no se guardan ni se envían a ningún lado.</string>
+    <string name="desktop_category">Escritorio</string>
+    <string name="app_scale_title">Escala de las apps (%)</string>
+    <string name="app_scale_summary">Hace más pequeñas las apps y ventanas mientras el escritorio está activo, para que quepa más contenido. 100 = sin cambios; al desactivar el escritorio vuelve tu escala. La barra conserva su tamaño.</string>
+    <string name="app_scale_needs_permission">Necesita el permiso de configuración segura (Permisos, Opcional)</string>
+    <string name="autohide_fullscreen_title">Ocultar la barra con apps a pantalla completa</string>
+    <string name="autohide_fullscreen_summary">Se esconde al segundo; lleva el mouse al borde de abajo para que vuelva</string>
 </resources>

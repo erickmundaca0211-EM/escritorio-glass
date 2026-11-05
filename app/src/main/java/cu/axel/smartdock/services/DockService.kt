@@ -25,6 +25,7 @@ import android.content.SharedPreferences.OnSharedPreferenceChangeListener
 import android.content.pm.ActivityInfo
 import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
+import android.graphics.Rect
 import android.content.pm.ShortcutInfo
 import android.content.res.Configuration
 import android.graphics.PorterDuff
@@ -57,6 +58,7 @@ import android.view.View
 import android.view.View.OnTouchListener
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityWindowInfo
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.Animation
 import android.view.animation.AnimationUtils
@@ -120,6 +122,7 @@ import cu.axel.smartdock.utils.ColorUtils.getMainColors
 import cu.axel.smartdock.glass.GlassController
 import cu.axel.smartdock.glass.GlassSurface
 import cu.axel.smartdock.utils.CalendarUtils
+import cu.axel.smartdock.system.DesktopScale
 import android.provider.CalendarContract
 import android.text.format.DateFormat
 import java.util.Locale
@@ -153,6 +156,10 @@ const val DOCK_SERVICE_ACTION = "dock_service_action"
 /** Escritorio Glass taskbar geometry (docs/DISENO.md). */
 private const val TASKBAR_MARGIN_BOTTOM_DP = 8
 private const val TASKBAR_ITEM_WIDTH_DP = 46 // 44 dp button + 2 dp gap, as in the mockup
+private const val KEY_AUTOHIDE_FULLSCREEN = "autohide_fullscreen"
+private const val TASKBAR_AUTOHIDE_DELAY_MS = 1000L // wait before hiding over a full-screen app (3 s felt slow)
+private const val TASKBAR_HOVER_HIDE_DELAY_MS = 1000 // after the mouse leaves the bar
+private const val FULLSCREEN_CHECK_DELAY_MS = 300L // let window changes settle
 
 class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, OnTouchListener,
     OnAppClickListener, OnDockAppClickListener, OnNotificationClickListener {
@@ -209,6 +216,17 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     private lateinit var gestureDetector: GestureDetector
     private lateinit var db: DBHelper
     private lateinit var dockHandler: Handler
+
+    // Escritorio Glass: the taskbar hides itself while a full-screen app is in front
+    // (docs/PLAN.md, Fase 5). Only window types, bounds and the package of the app in front are
+    // used, never what the windows show (CLAUDE.md).
+    private var autoHidden = false
+    private var autoHideSuppressed = false
+    private var foregroundPackage = ""
+    private var homePackages = emptySet<String>()
+    private val autoHideHandler = Handler(Looper.getMainLooper())
+    private val fullscreenCheck = Runnable { checkFullscreenApp() }
+    private val autoHideRunnable = Runnable { autoHideTaskbar() }
     private var dock: HoverInterceptorLayout? = null
     private lateinit var bluetoothManager: BluetoothManager
     private lateinit var pinnedApps: ArrayList<App>
@@ -295,6 +313,11 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         maxApps = sharedPreferences.getString("max_running_apps", "10")!!.toInt()
         maxAppsLandscape = sharedPreferences.getString("max_running_apps_landscape", "10")!!.toInt()
         preferSecondaryDisplay = sharedPreferences.getBoolean("prefer_last_display", false)
+        // Desktop "app scale": smaller apps and windows while the desktop runs (restored in onDestroy)
+        DesktopScale.apply(this, sharedPreferences)
+        homePackages = packageManager.queryIntentActivities(
+            Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0
+        ).map { it.activityInfo.packageName }.toSet()
         createViews()
 
         //Listen for launcher messages
@@ -526,7 +549,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             windowManager.addView(view, layoutParams)
         } else launchApp(getDefaultLaunchMode(app.packageName), app.packageName)
         if (getDefaultLaunchMode(app.packageName) == "fullscreen") {
-            if (isPinned && sharedPreferences.getBoolean("auto_unpin", true)) {
+            if (isPinned && sharedPreferences.getBoolean("auto_unpin", true) && !autoHideEnabled()) {
                 unpinDock()
             }
         } else {
@@ -555,6 +578,14 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED)
+            rememberForegroundApp(event)
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
+            event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED
+        ) {
+            autoHideHandler.removeCallbacks(fullscreenCheck)
+            autoHideHandler.postDelayed(fullscreenCheck, FULLSCREEN_CHECK_DELAY_MS)
+        }
         if (!isPinned)
             return
 
@@ -812,7 +843,64 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             kc.showMode = SHOW_MODE_HIDDEN
     }
 
+    /** Package of the app whose window is in front (from the event, never from window content). */
+    private fun rememberForegroundApp(event: AccessibilityEvent) {
+        val app = event.packageName?.toString() ?: return
+        val window = windows.firstOrNull { it.id == event.windowId } ?: return
+        if (window.type == AccessibilityWindowInfo.TYPE_APPLICATION)
+            foregroundPackage = app
+    }
+
+    /** True when the app in front is not a launcher and its window covers the whole screen. */
+    private fun isFullscreenAppInFront(): Boolean {
+        if (foregroundPackage.isEmpty() || foregroundPackage == packageName ||
+            foregroundPackage in homePackages
+        ) return false
+        val window = windows.firstOrNull {
+            it.type == AccessibilityWindowInfo.TYPE_APPLICATION && (it.isActive || it.isFocused)
+        } ?: return false
+        val bounds = Rect()
+        window.getBoundsInScreen(bounds)
+        val screen = DeviceUtils.getDisplayBounds(context, Display.DEFAULT_DISPLAY)
+        return bounds.width() >= screen.width() * 0.95f && bounds.height() >= screen.height() * 0.9f
+    }
+
+    private fun autoHideEnabled() = sharedPreferences.getBoolean(KEY_AUTOHIDE_FULLSCREEN, true)
+
+    private fun checkFullscreenApp() {
+        if (dock == null) return
+        if (autoHideEnabled() && isFullscreenAppInFront()) {
+            if (isPinned && !autoHideSuppressed && !autoHideHandler.hasCallbacks(autoHideRunnable)) {
+                Log.d("EG", "taskbar: full-screen app in front, hiding in $TASKBAR_AUTOHIDE_DELAY_MS ms")
+                autoHideHandler.postDelayed(autoHideRunnable, TASKBAR_AUTOHIDE_DELAY_MS)
+            }
+        } else {
+            autoHideHandler.removeCallbacks(autoHideRunnable)
+            autoHideSuppressed = false
+            if (autoHidden) pinDock()
+        }
+    }
+
+    private fun autoHideTaskbar() {
+        if (!isPinned || !autoHideEnabled() || !isFullscreenAppInFront()) return
+        if (appMenuVisible || quickSettingsPanelVisible || powerMenuVisible) {
+            // Try again once the open panel is closed
+            autoHideHandler.postDelayed(autoHideRunnable, TASKBAR_AUTOHIDE_DELAY_MS)
+            return
+        }
+        Log.d("EG", "taskbar: hidden over a full-screen app")
+        autoHidden = true
+        isPinned = false
+        hideDock(0, auto = true)
+    }
+
     private fun togglePin() {
+        if (autoHidden) {
+            // Shown with the mouse over a full-screen app: keep it until that app goes away
+            autoHideSuppressed = true
+            pinDock()
+            return
+        }
         if (isPinned) unpinDock() else pinDock()
     }
 
@@ -835,6 +923,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
 
     fun pinDock() {
         isPinned = true
+        autoHidden = false
         pinBtn.setImageResource(R.drawable.ic_pin)
         if (dockLayout.isGone)
             showDock()
@@ -847,7 +936,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             hideDock(500)
     }
 
-    private fun hideDock(delay: Int) {
+    private fun hideDock(delay: Int, auto: Boolean = false) {
         dockHandler.removeCallbacksAndMessages(null)
         dockHandler.postDelayed({
             if (!isPinned) {
@@ -858,7 +947,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
                         dockLayout.visibility = View.GONE
                         val activationMethod =
                             sharedPreferences.getString("activation_method", "swipe")!!
-                        if (activationMethod == "swipe") {
+                        if (auto || activationMethod == "swipe") {
                             val height =
                                 sharedPreferences.getString("dock_activation_area", "10")!!.toInt()
                             dockLayoutParams.height = Utils.dpToPx(context, height)
@@ -867,7 +956,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
                             dock!!.visibility = View.GONE
                             dockHandle!!.visibility = View.VISIBLE
                         }
-                        if (sharedPreferences.getBoolean("first_hide", true))
+                        if (!auto && sharedPreferences.getBoolean("first_hide", true))
                             showFirstDockHideDialog(activationMethod)
                     }
 
@@ -942,7 +1031,9 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         if (appMenuVisible)
             hideAppMenu()
 
-        if (launchMode == "fullscreen" && sharedPreferences.getBoolean("auto_unpin", true)) {
+        if (launchMode == "fullscreen" && sharedPreferences.getBoolean("auto_unpin", true) &&
+            !autoHideEnabled()
+        ) {
             if (isPinned)
                 unpinDock()
         } else {
@@ -1406,6 +1497,15 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     override fun onSharedPreferenceChanged(p1: SharedPreferences, preference: String?) {
         if (preference == null)
             return
+        if (preference == KEY_AUTOHIDE_FULLSCREEN) {
+            checkFullscreenApp()
+            return
+        }
+        if (preference == DesktopScale.KEY_APP_SCALE) {
+            // The new density reaches onConfigurationChanged, which rebuilds the bar at its own scale
+            DesktopScale.apply(this, sharedPreferences)
+            return
+        }
         if (preference.startsWith("theme"))
             applyTheme()
         else if (preference == "menu_icon_uri")
@@ -2286,6 +2386,8 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         }
         removeAllViews()
         GlassController.stop()
+        autoHideHandler.removeCallbacksAndMessages(null)
+        DesktopScale.restore(this, sharedPreferences)
         try {
             unbindService(notificationServiceConnection)
         } catch (_: IllegalArgumentException) {
@@ -2306,10 +2408,20 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
 
     private fun createViews() {
         context = DeviceUtils.getDisplayContext(this, preferSecondaryDisplay)
+        // Windows are always added through the service's own window manager: it carries the
+        // accessibility window token, so the bar sits on the bottom edge instead of above the
+        // navigation bar
         windowManager = context.getSystemService(WINDOW_SERVICE) as WindowManager
+        // With a lowered app scale the taskbar and its panels keep their own, larger scale: views
+        // are inflated and measured with this context
+        DesktopScale.barDensity(sharedPreferences)?.let { density ->
+            val config = Configuration(context.resources.configuration)
+            config.densityDpi = density
+            context = context.createConfigurationContext(config)
+        }
         GlassController.start(context)
         orientation = context.resources.configuration.orientation
-        densityDpi = context.resources.configuration.densityDpi
+        densityDpi = resources.configuration.densityDpi // the system's, not the taskbar's
         orientationValue =
             if (orientation == Configuration.ORIENTATION_PORTRAIT) "" else "_landscape"
 
@@ -2377,7 +2489,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             if (event.action == MotionEvent.ACTION_HOVER_ENTER) {
                 if (dockLayout.isGone) showDock()
             } else if (event.action == MotionEvent.ACTION_HOVER_EXIT) if (dockLayout.isVisible) {
-                hideDock(500)
+                if (autoHidden) hideDock(TASKBAR_HOVER_HIDE_DELAY_MS, auto = true) else hideDock(500)
             }
             false
         }
