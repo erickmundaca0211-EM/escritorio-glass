@@ -31,6 +31,10 @@ class DockAppAdapter(
         fun onDockAppLongClicked(app: DockApp, view: View)
     }
 
+    private companion object {
+        const val OPEN_INDICATOR = 0xB3FFFFFF.toInt() // white 70 %
+    }
+
     init {
         val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
         iconTheming = sharedPreferences.getString("icon_pack", "") != ""
@@ -44,17 +48,22 @@ class DockAppAdapter(
             "round_rect" -> iconBackground = R.drawable.round_square
             "default" -> iconBackground = -1
         }
+        // Escritorio Glass taskbar shows the apps' own icons, like Windows 11
+        if (accentIndicator != null) iconBackground = -1
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, arg1: Int): ViewHolder {
         val itemLayoutView =
-            LayoutInflater.from(parent.context).inflate(R.layout.app_task_entry, null)
+            // Inflate against the parent so the 44x42 dp button size and margins are kept
+            LayoutInflater.from(parent.context).inflate(R.layout.app_task_entry, parent, false)
         return ViewHolder(itemLayoutView)
     }
 
     override fun onBindViewHolder(viewHolder: ViewHolder, position: Int) {
         val app = apps[position]
         val size = app.tasks.size
+        val active = size > 0 && app.packageName == AppUtils.currentApp
+        viewHolder.itemView.isActivated = active && accentIndicator != null
         if (size > 0) {
             if (tintIndicators)
                 ColorUtils.applyColor(
@@ -62,11 +71,15 @@ class DockAppAdapter(
                     ColorUtils.manipulateColor(ColorUtils.getDrawableDominantColor(app.icon), 2f)
                 )
             else if (accentIndicator != null)
-                ColorUtils.applyColor(viewHolder.runningIndicator, accentIndicator)
+                // Active app: accent pill; other open apps: soft white pill (docs/DISENO.md)
+                ColorUtils.applyColor(
+                    viewHolder.runningIndicator,
+                    if (active) accentIndicator else OPEN_INDICATOR
+                )
 
             viewHolder.runningIndicator.alpha = if (app.tasks[0].id != -1) 1f else 0f
             viewHolder.runningIndicator.layoutParams.width =
-                Utils.dpToPx(context, if (app.packageName == AppUtils.currentApp) 16 else 8)
+                Utils.dpToPx(context, if (active) 16 else 6)
 
             if (size > 1) {
                 viewHolder.taskCounter.text = size.toString()

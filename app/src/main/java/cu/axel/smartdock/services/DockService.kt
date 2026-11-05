@@ -119,6 +119,12 @@ import cu.axel.smartdock.utils.ColorUtils
 import cu.axel.smartdock.utils.ColorUtils.getMainColors
 import cu.axel.smartdock.glass.GlassController
 import cu.axel.smartdock.glass.GlassSurface
+import cu.axel.smartdock.utils.CalendarUtils
+import android.provider.CalendarContract
+import android.text.format.DateFormat
+import java.util.Locale
+import kotlin.math.max
+import android.view.ViewGroup
 import android.content.res.ColorStateList
 import android.graphics.drawable.Drawable
 import cu.axel.smartdock.utils.DeepShortcutManager
@@ -143,6 +149,10 @@ const val ACTION_BIND_NOTIFICATION_SERVICE = "bind_notification_service"
 const val ACTION_LAUNCH_APP = "launch_app"
 const val DESKTOP_APP_PINNED = "desktop_app_pinned"
 const val DOCK_SERVICE_ACTION = "dock_service_action"
+
+/** Escritorio Glass taskbar geometry (docs/DISENO.md). */
+private const val TASKBAR_MARGIN_BOTTOM_DP = 8
+private const val TASKBAR_ITEM_WIDTH_DP = 46 // 44 dp button + 2 dp gap, as in the mockup
 
 class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, OnTouchListener,
     OnAppClickListener, OnDockAppClickListener, OnNotificationClickListener {
@@ -218,6 +228,21 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     private lateinit var connectivityManager: ConnectivityManager
     private var notificationLayout: NotificationLayout? = null
     private lateinit var statusArea: LinearLayout
+
+    // Escritorio Glass taskbar (phase 2)
+    private lateinit var searchBtn: ImageView
+    private lateinit var trayOverflowBtn: ImageView
+    private lateinit var dateBlock: LinearLayout
+    private lateinit var dateMainTv: TextView
+    private lateinit var nextEventTv: TextView
+    private lateinit var centerGroup: LinearLayout
+    private lateinit var navPanel: LinearLayout
+    private lateinit var systemTray: LinearLayout
+    private lateinit var notificationsArea: View
+    private lateinit var clockArea: View
+    private lateinit var dateLineTv: TextClock
+    private var runningAppsCount = 0
+    private var timeTickReceiver: BroadcastReceiver? = null
     override fun onCreate() {
         super.onCreate()
         db = DBHelper(this)
@@ -381,6 +406,20 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             }
 
         }, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED), ContextCompat.RECEIVER_NOT_EXPORTED)
+
+        timeTickReceiver = object : BroadcastReceiver() {
+            override fun onReceive(p0: Context?, p1: Intent?) {
+                updateDateBlock()
+            }
+        }
+        ContextCompat.registerReceiver(
+            this, timeTickReceiver,
+            IntentFilter(Intent.ACTION_TIME_TICK).apply {
+                addAction(Intent.ACTION_DATE_CHANGED)
+                addAction(Intent.ACTION_TIMEZONE_CHANGED)
+            },
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
 
         connectivityManager.registerNetworkCallback(
             NetworkRequest.Builder().addTransportType(
@@ -1037,6 +1076,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
 
         windowManager.addView(appMenu, layoutParams)
         appMenuVisible = true
+        appsBtn.isActivated = true
     }
 
     fun hideAppMenu() {
@@ -1048,6 +1088,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         }
         windowManager.removeView(appMenu)
         appMenuVisible = false
+        appsBtn.isActivated = false
     }
 
     private suspend fun fetchInstalledApps(): ArrayList<App> = withContext(Dispatchers.Default) {
@@ -1380,6 +1421,8 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             loadFavoriteApps()
         } else if (preference == "tint_indicators" || preference == "glass_accent") {
             updateRunningTasks(true)
+            updateMenuIcon()
+            updateNotificationCount()
         } else if (preference == "lock_landscape")
             setOrientation()
         else if (preference == "center_running_apps") {
@@ -1443,27 +1486,68 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         }
     }
 
+    /** Window height: the floating bar plus its bottom margin (docs/DISENO.md). */
+    private fun taskbarWindowHeight(): Int {
+        val barHeight = sharedPreferences.getString("dock_height", "50")!!.toIntOrNull() ?: 50
+        return Utils.dpToPx(context, barHeight + TASKBAR_MARGIN_BOTTOM_DP)
+    }
+
     private fun updateDockHeight() {
-        dockHeight =
-            Utils.dpToPx(context, sharedPreferences.getString("dock_height", "56")!!.toInt())
+        dockHeight = taskbarWindowHeight()
         if (isPinned) {
             dockLayoutParams.height = dockHeight
             windowManager.updateViewLayout(dock, dockLayoutParams)
         }
     }
 
+    /** Centred (Windows 11 default) or left-aligned taskbar icons ("center_running_apps"). */
     private fun placeRunningApps() {
-        val layoutParams = RelativeLayout.LayoutParams(
-            RelativeLayout.LayoutParams.MATCH_PARENT,
-            RelativeLayout.LayoutParams.WRAP_CONTENT
-        )
-        if (sharedPreferences.getBoolean("center_running_apps", true)) {
-            layoutParams.addRule(RelativeLayout.CENTER_IN_PARENT)
-        } else {
-            layoutParams.addRule(RelativeLayout.END_OF, R.id.nav_panel)
-            layoutParams.addRule(RelativeLayout.START_OF, R.id.system_tray)
+        taskbarGroupStart = -1
+        fitRunningApps(runningAppsCount)
+    }
+
+    /** Left offset of the centre group inside the bar (-1 = not placed yet). */
+    private var taskbarGroupStart = -1
+
+    /**
+     * Windows 11 behaviour: Start + apps stay centred on the screen; as more apps open the group
+     * slides sideways only as much as needed so it never covers the date block or the tray, and
+     * only then the list scrolls. The list always shows whole icons: half an icon looks cut off.
+     */
+    private fun fitRunningApps(count: Int) {
+        if (!::tasksGv.isInitialized || !::centerGroup.isInitialized) return
+        val itemWidth = Utils.dpToPx(context, TASKBAR_ITEM_WIDTH_DP)
+        var width = itemWidth * count
+        val barWidth = dockLayout.width - dockLayout.paddingStart - dockLayout.paddingEnd
+        // Before the first layout the XML keeps the group centred; the layout listener calls us again
+        if (barWidth > 0) {
+            val left = if (dateBlock.isVisible) dateBlock.width else 0
+            val right = systemTray.width
+            val gap = Utils.dpToPx(context, 8)
+            val nav = navPanel.width
+            val room = barWidth - left - right - 2 * gap - nav
+            width = width.coerceAtMost(max(1, room / itemWidth) * itemWidth)
+            val group = nav + width
+            val first = left + gap
+            val last = max(first, barWidth - right - gap - group)
+            val start = if (sharedPreferences.getBoolean("center_running_apps", true))
+                ((barWidth - group) / 2).coerceIn(first, last) else first
+            if (taskbarGroupStart != start) {
+                taskbarGroupStart = start
+                centerGroup.layoutParams = RelativeLayout.LayoutParams(
+                    RelativeLayout.LayoutParams.WRAP_CONTENT,
+                    RelativeLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    addRule(RelativeLayout.ALIGN_PARENT_START)
+                    addRule(RelativeLayout.CENTER_VERTICAL)
+                    marginStart = start
+                }
+            }
         }
-        tasksGv.layoutParams = layoutParams
+        if (tasksGv.layoutParams.width != width) {
+            tasksGv.layoutParams.width = width
+            tasksGv.requestLayout()
+        }
     }
 
     private fun loadPinnedApps() {
@@ -1481,8 +1565,6 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             pinnedApps.forEach { pinnedApp ->
                 apps.add(DockApp(pinnedApp.name, pinnedApp.packageName, pinnedApp.icon))
             }
-
-        val gridSize = Utils.dpToPx(context, 52)
 
         //TODO: We can eliminate another for
         //TODO: Don't do anything if tasks has not changed
@@ -1515,12 +1597,16 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             }
         }
 
-        tasksGv.layoutParams.width = gridSize * apps.size
+        runningAppsCount = apps.size
+        fitRunningApps(apps.size)
         val adapter = tasksGv.adapter
         if (adapter is DockAppAdapter && !recreateAdapter)
             adapter.updateApps(apps)
         else
             tasksGv.adapter = DockAppAdapter(context, apps, this, iconPackUtils)
+        // When there are more apps than room the list scrolls: keep the app in front in view
+        val active = apps.indexOfFirst { it.packageName == AppUtils.currentApp }
+        if (active != -1) tasksGv.scrollToPosition(active)
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
@@ -1532,6 +1618,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         updateNavigationBar()
         updateQuickSettings()
         updateBatteryBtn()
+        updateDateBlock()
         if (appMenuVisible)
             hideAppMenu()
     }
@@ -1554,16 +1641,17 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
                     true
                 )
             ) View.VISIBLE else View.GONE
+        // Back and Home are optional on a phone with gesture navigation (hidden by default)
         backBtn.visibility =
             if (sharedPreferences.getBoolean(
                     "enable_nav_back$orientationValue",
-                    true
+                    false
                 )
             ) View.VISIBLE else View.GONE
         homeBtn.visibility =
             if (sharedPreferences.getBoolean(
                     "enable_nav_home$orientationValue",
-                    true
+                    false
                 )
             ) View.VISIBLE else View.GONE
         recentBtn.visibility = if (sharedPreferences.getBoolean(
@@ -1576,33 +1664,125 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
                 false
             )
         ) View.VISIBLE else View.GONE
+        applyTaskbarOrientation()
+    }
+
+    /** Compact bar in portrait: no date block, Search or Task view, smaller margins. */
+    private fun applyTaskbarOrientation() {
+        val portrait = orientation == Configuration.ORIENTATION_PORTRAIT
+        dateBlock.isVisible = !portrait
+        searchBtn.isVisible = !portrait
+        if (portrait) recentBtn.isVisible = false
+        dateLineTv.isVisible = !portrait
+        val margin = Utils.dpToPx(context, if (portrait) 6 else 10)
+        (dockLayout.layoutParams as? ViewGroup.MarginLayoutParams)?.let {
+            it.marginStart = margin
+            it.marginEnd = margin
+            dockLayout.layoutParams = it
+        }
+        fitRunningApps(runningAppsCount)
     }
 
     private fun updateQuickSettings() {
-        val notifEnabled = sharedPreferences.getBoolean("enable_qs_notif$orientationValue", true)
-        notificationBtn.isVisible = notifEnabled
+        notificationsArea.isVisible =
+            sharedPreferences.getBoolean("enable_qs_notif$orientationValue", true)
 
-        val bluetoothEnabled =
-            sharedPreferences.getBoolean("enable_qs_bluetooth$orientationValue", false)
-        bluetoothBtn.isVisible = bluetoothEnabled
+        // Bluetooth state and the pin button live in the "^" (hidden icons) menu
+        bluetoothBtn.isVisible = false
+        pinBtn.isVisible = false
 
         val batteryEnabled =
-            sharedPreferences.getBoolean("enable_qs_battery$orientationValue", false)
+            sharedPreferences.getBoolean("enable_qs_battery$orientationValue", true)
         batteryBtn.isVisible = batteryEnabled
 
         val wifiEnabled = sharedPreferences.getBoolean("enable_qs_wifi$orientationValue", true)
         wifiBtn.isVisible = wifiEnabled
 
-        pinBtn.isVisible = sharedPreferences.getBoolean("enable_qs_pin$orientationValue", true)
-
         val volumeEnabled = sharedPreferences.getBoolean("enable_qs_vol$orientationValue", true)
         volumeBtn.isVisible = volumeEnabled
 
-        dateTv.isVisible = sharedPreferences.getBoolean("enable_qs_date$orientationValue", true)
+        clockArea.isVisible = sharedPreferences.getBoolean("enable_qs_date$orientationValue", true)
 
-        val statusEnabled = bluetoothEnabled || batteryEnabled || wifiEnabled || volumeEnabled
-        statusArea.isVisible = notifEnabled || statusEnabled
-        statusArea.setPadding(if (statusEnabled) Utils.dpToPx(context, 4) else 0)
+        statusArea.isVisible = batteryEnabled || wifiEnabled || volumeEnabled
+        fitRunningApps(runningAppsCount)
+    }
+
+    /** "^" menu: the tray items that don't fit on the bar (docs/DISENO.md). */
+    @SuppressLint("ClickableViewAccessibility")
+    private fun showTrayOverflow(anchor: View) {
+        val view = LayoutInflater.from(context).inflate(R.layout.task_list, null)
+        val layoutParams = Utils.makeWindowParams(-2, -2, context, preferSecondaryDisplay)
+        view.setBackgroundResource(R.drawable.round_rect)
+        ColorUtils.applyMainColor(context, sharedPreferences, view, GlassSurface.POPUP)
+        layoutParams.gravity = Gravity.BOTTOM or Gravity.START
+        layoutParams.flags =
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
+        layoutParams.y = Utils.dpToPx(context, 4) + dockHeight
+        val location = IntArray(2)
+        anchor.getLocationOnScreen(location)
+        layoutParams.x = location[0]
+        view.setOnTouchListener { _, event ->
+            if (event.action == MotionEvent.ACTION_OUTSIDE && view.isAttachedToWindow)
+                windowManager.removeView(view)
+            false
+        }
+        val bluetoothOn = bluetoothManager.adapter?.isEnabled ?: false
+        val actions = arrayListOf(
+            Action(
+                if (bluetoothOn) R.drawable.ic_bluetooth else R.drawable.ic_bluetooth_off,
+                getString(R.string.bluetooth)
+            ),
+            Action(
+                if (isPinned) R.drawable.ic_unpin else R.drawable.ic_pin,
+                getString(if (isPinned) R.string.taskbar_hide else R.string.taskbar_keep_visible)
+            ),
+            Action(R.drawable.ic_settings, getString(R.string.taskbar_app_settings))
+        )
+        val actionsLv = view.findViewById<ListView>(R.id.tasks_lv)
+        actionsLv.adapter = AppActionsAdapter(context, actions)
+        actionsLv.setOnItemClickListener { _, _, position, _ ->
+            when (position) {
+                0 -> openBluetoothSettings()
+                1 -> togglePin()
+                2 -> launchApp(
+                    null, null,
+                    Intent(this, MainActivity::class.java)
+                )
+            }
+            if (view.isAttachedToWindow) windowManager.removeView(view)
+        }
+        windowManager.addView(view, layoutParams)
+    }
+
+    /** Left block: date, and the next calendar event when the optional permission is granted. */
+    private fun updateDateBlock() {
+        if (!::dateMainTv.isInitialized) return
+        val now = System.currentTimeMillis()
+        val locale = Locale.getDefault()
+        val event = CalendarUtils.nextEvent(context, now)
+        if (event != null) {
+            dateMainTv.text = DateFormat.format(
+                DateFormat.getBestDateTimePattern(locale, "EEEdMMM"), now
+            ).toString().replaceFirstChar { it.titlecase(locale) }
+            val time = DateFormat.getTimeFormat(context).format(event.begin)
+            nextEventTv.text = "${event.title} · $time"
+        } else {
+            dateMainTv.text = DateFormat.format("EEEE", now).toString()
+                .replaceFirstChar { it.titlecase(locale) }
+            nextEventTv.text = DateFormat.format(
+                DateFormat.getBestDateTimePattern(locale, "dMMMM"), now
+            )
+        }
+    }
+
+    private fun openCalendarApp() {
+        val intent = Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_CALENDAR)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        try {
+            startActivity(intent)
+        } catch (_: ActivityNotFoundException) {
+            launchApp(null, null, Intent(Intent.ACTION_VIEW, CalendarContract.CONTENT_URI))
+        }
     }
 
     private fun launchAssistant() {
@@ -1949,7 +2129,6 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         ColorUtils.applySecondaryColor(context, sharedPreferences, searchEntry)
         ColorUtils.applySecondaryColor(context, sharedPreferences, backBtn)
         ColorUtils.applySecondaryColor(context, sharedPreferences, homeBtn)
-        ColorUtils.applySecondaryColor(context, sharedPreferences, recentBtn)
         ColorUtils.applySecondaryColor(context, sharedPreferences, assistBtn)
         ColorUtils.applySecondaryColor(context, sharedPreferences, pinBtn)
         ColorUtils.applySecondaryColor(context, sharedPreferences, powerBtn)
@@ -1971,7 +2150,12 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
 
     private fun updateMenuIcon() {
         val iconUri = sharedPreferences.getString("menu_icon_uri", "default")
-        if (iconUri == "default") appsBtn.setImageResource(R.drawable.ic_apps_menu) else {
+        if (iconUri == "default") {
+            appsBtn.setImageResource(R.drawable.ic_eg_start)
+            appsBtn.imageTintList =
+                ColorStateList.valueOf(ColorUtils.getAccentColor(sharedPreferences))
+        } else {
+            appsBtn.imageTintList = null
             try {
                 val icon = iconUri?.toUri()
                 if (icon != null)
@@ -2042,7 +2226,9 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     }
 
     private fun updateDockBackgroundColor() {
-        val round = sharedPreferences.getBoolean("round_dock", false)
+        // The Escritorio Glass bar floats, so it is always rounded; other themes keep "round_dock"
+        val round = sharedPreferences.getBoolean("round_dock", false) ||
+                ColorUtils.isGlassTheme(sharedPreferences)
         ColorUtils.applyMainColor(
             context, sharedPreferences, dockLayout,
             if (round) GlassSurface.BAR else GlassSurface.BAR_FLAT
@@ -2074,6 +2260,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             unregisterReceiver(batteryReceiver)
         if (::soundEventsReceiver.isInitialized)
             unregisterReceiver(soundEventsReceiver)
+        timeTickReceiver?.let { unregisterReceiver(it) }
         if (::displayListener.isInitialized && ::displayManager.isInitialized)
             displayManager.unregisterDisplayListener(displayListener)
         // The service can be stopped before onServiceConnected() registered these (e.g. toggled
@@ -2154,6 +2341,22 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         volumeBtn = dock!!.findViewById(R.id.volume_btn)
         batteryBtn = dock!!.findViewById(R.id.battery_btn)
         dateTv = dock!!.findViewById(R.id.date_btn)
+        searchBtn = dock!!.findViewById(R.id.search_btn)
+        trayOverflowBtn = dock!!.findViewById(R.id.tray_overflow_btn)
+        dateBlock = dock!!.findViewById(R.id.date_block)
+        dateMainTv = dock!!.findViewById(R.id.date_main_tv)
+        nextEventTv = dock!!.findViewById(R.id.next_event_tv)
+        centerGroup = dock!!.findViewById(R.id.center_group)
+        navPanel = dock!!.findViewById(R.id.nav_panel)
+        systemTray = dock!!.findViewById(R.id.system_tray)
+        notificationsArea = dock!!.findViewById(R.id.notifications_area)
+        clockArea = dock!!.findViewById(R.id.clock_area)
+        dateLineTv = dock!!.findViewById(R.id.date_line_tv)
+        // Re-place the centre group whenever the bar or a side block (date, clock) changes size.
+        // fitRunningApps only touches the layout when the result changes, so this settles at once.
+        dockLayout.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            fitRunningApps(runningAppsCount)
+        }
         dock!!.setOnHoverListener { _, event ->
             if (event.action == MotionEvent.ACTION_HOVER_ENTER) {
                 if (dockLayout.isGone) showDock()
@@ -2215,22 +2418,21 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         statusArea.setOnClickListener {
             toggleQuickSettingsPanel(1)
         }
-        dateTv.setOnClickListener {
-            launchApp(
-                null,
-                sharedPreferences.getString("app_clock", "com.android.deskclock")!!
-            )
-        }
-        dateTv.setOnLongClickListener {
-            launchApp(
-                null, null,
-                Intent(Settings.ACTION_DATE_SETTINGS)
-            )
+        // The time and date are one button (no listeners on the TextClocks, or a tap on the digits
+        // would open the clock app instead). The calendar arrives with phase 4; until then the
+        // clock opens the notifications panel. Long press: date and time settings.
+        clockArea.setOnClickListener { notificationBtn.performClick() }
+        clockArea.setOnLongClickListener {
+            launchApp(null, null, Intent(Settings.ACTION_DATE_SETTINGS))
             true
         }
+        notificationsArea.setOnClickListener { notificationBtn.performClick() }
+        searchBtn.setOnClickListener { toggleAppMenu() }
+        trayOverflowBtn.setOnClickListener { showTrayOverflow(it) }
+        dateBlock.setOnClickListener { openCalendarApp() }
+        updateDateBlock()
 
-        dockHeight =
-            Utils.dpToPx(context, sharedPreferences.getString("dock_height", "56")!!.toInt())
+        dockHeight = taskbarWindowHeight()
         dockLayoutParams =
             Utils.makeWindowParams(-1, dockHeight, context, preferSecondaryDisplay)
         dockLayoutParams.screenOrientation =
@@ -2591,13 +2793,9 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
 
     private fun updateNotificationCount() {
         val count = notificationBridge?.notificationCount ?: 0
-        if (count > 0) {
-            notificationBtn.setBackgroundResource(R.drawable.circle)
-            notificationBtn.text = count.toString()
-        } else {
-            notificationBtn.setBackgroundResource(R.drawable.ic_expand_up_circle)
-            notificationBtn.text = ""
-        }
+        notificationBtn.isVisible = count > 0
+        notificationBtn.text = if (count > 99) "99+" else count.toString()
+        notificationBtn.background?.setTint(ColorUtils.getAccentColor(sharedPreferences))
     }
 
     private fun showSettingsPermissionDialog() {

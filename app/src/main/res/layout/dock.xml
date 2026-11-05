@@ -1,28 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Escritorio Glass taskbar (docs/DISENO.md, "Barra de tareas"; docs/mockup/Main.png).
+    Floating 50 dp bar: date / next event on the left, Start + Search + Task view + apps in the centre,
+    hidden icons, status group, clock and notifications on the right.
+    Smart Dock view ids are kept so DockService keeps working (pin_btn and bluetooth_btn stay hidden:
+    they live in the "^" menu).
+-->
 <cu.axel.smartdock.widgets.HoverInterceptorLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
-    android:elevation="5dp">
+    android:layout_height="wrap_content">
 
     <RelativeLayout
         android:id="@+id/dock_layout"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:layout_marginStart="10dp"
+        android:layout_marginEnd="10dp"
+        android:layout_marginBottom="8dp"
         android:background="@drawable/round_rect"
-        android:orientation="horizontal"
-        android:paddingStart="5dp"
-        android:paddingEnd="10dp"
+        android:paddingStart="8dp"
+        android:paddingEnd="6dp"
         android:visibility="gone">
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/apps_lv"
+        <!-- Left: date and, with calendar permission, the next event -->
+        <LinearLayout
+            android:id="@+id/date_block"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_centerInParent="true"
+            android:layout_height="42dp"
+            android:layout_alignParentStart="true"
             android:layout_centerVertical="true"
-            android:fadingEdgeLength="6dp"
-            android:requiresFadingEdge="horizontal" />
+            android:background="@drawable/taskbar_button_bg"
+            android:contentDescription="@string/taskbar_calendar"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="6dp"
+            android:paddingEnd="8dp">
 
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_eg_calendar"
+                android:tint="@color/glass_text_secondary" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/date_main_tv"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:maxWidth="150dp"
+                    android:singleLine="true"
+                    android:textColor="@color/glass_text_primary"
+                    android:textSize="12.5sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/next_event_tv"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxWidth="150dp"
+                    android:singleLine="true"
+                    android:textColor="@color/glass_text_secondary"
+                    android:textSize="11.5sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Right: hidden icons, status group, clock, notifications -->
         <LinearLayout
             android:id="@+id/system_tray"
             android:layout_width="wrap_content"
@@ -33,127 +82,222 @@
             android:orientation="horizontal">
 
             <ImageView
+                android:id="@+id/tray_overflow_btn"
+                android:layout_width="32dp"
+                android:layout_height="40dp"
+                android:background="@drawable/taskbar_button_bg"
+                android:contentDescription="@string/taskbar_hidden_icons"
+                android:padding="8dp"
+                android:src="@drawable/ic_eg_chevron_up" />
+
+            <ImageView
                 android:id="@+id/pin_btn"
                 android:layout_width="35dp"
                 android:layout_height="35dp"
                 android:layout_margin="5dp"
                 android:background="@drawable/circle"
                 android:padding="8dp"
-                android:src="@drawable/ic_unpin" />
+                android:src="@drawable/ic_unpin"
+                android:visibility="gone" />
 
             <LinearLayout
-                android:gravity="center_vertical"
                 android:id="@+id/status_area"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_margin="5dp"
-                android:background="@drawable/search_background"
-                android:padding="4dp">
-
-                <TextView
-                    android:id="@+id/notifications_btn"
-                    android:layout_width="22dp"
-                    android:layout_height="22dp"
-                    android:layout_margin="3dp"
-                    android:background="@drawable/ic_expand_up_circle"
-                    android:gravity="center"
-                    android:padding="2dp"
-                    android:textColor="@android:color/black"
-                    android:textSize="12sp" />
-
-                <ImageView
-                    android:id="@+id/volume_btn"
-                    android:layout_width="22dp"
-                    android:layout_height="22dp"
-                    android:layout_margin="3dp"
-                    android:src="@drawable/ic_volume" />
-
-                <ImageView
-                    android:id="@+id/bluetooth_btn"
-                    android:layout_width="22dp"
-                    android:layout_height="22dp"
-                    android:layout_margin="3dp"
-                    android:src="@drawable/ic_bluetooth_off" />
+                android:layout_height="40dp"
+                android:layout_marginStart="2dp"
+                android:background="@drawable/taskbar_button_bg"
+                android:contentDescription="@string/quick_settings"
+                android:gravity="center_vertical"
+                android:paddingStart="7dp"
+                android:paddingEnd="7dp">
 
                 <ImageView
                     android:id="@+id/wifi_btn"
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:layout_margin="3dp"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:layout_margin="5dp"
                     android:src="@drawable/ic_wifi_on" />
+
+                <ImageView
+                    android:id="@+id/bluetooth_btn"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:layout_margin="4dp"
+                    android:src="@drawable/ic_bluetooth_off"
+                    android:visibility="gone" />
+
+                <ImageView
+                    android:id="@+id/volume_btn"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:layout_margin="5dp"
+                    android:src="@drawable/ic_volume" />
 
                 <TextView
                     android:id="@+id/battery_btn"
                     android:layout_width="wrap_content"
-                    android:layout_height="22dp"
-                    android:layout_margin="3dp"
+                    android:layout_height="20dp"
+                    android:layout_margin="5dp"
                     android:gravity="center_vertical"
-                    android:textColor="@android:color/white"
-                    app:drawableStartCompat="@drawable/battery_charging_full" />
+                    android:textColor="@color/glass_text_primary"
+                    android:textSize="11.5sp" />
             </LinearLayout>
 
-
-            <TextClock
-                android:id="@+id/date_btn"
+            <LinearLayout
+                android:id="@+id/clock_area"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginLeft="10dp"
-                android:layout_marginRight="10dp"
-                android:textColor="@android:color/white" />
+                android:layout_height="40dp"
+                android:layout_marginStart="2dp"
+                android:background="@drawable/taskbar_button_bg"
+                android:contentDescription="@string/taskbar_date_time"
+                android:gravity="end|center_vertical"
+                android:orientation="vertical"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp">
+
+                <TextClock
+                    android:id="@+id/date_btn"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:format12Hour="h:mm a"
+                    android:format24Hour="HH:mm"
+                    android:textColor="@color/glass_text_primary"
+                    android:textFontWeight="500"
+                    android:textSize="12.5sp" />
+
+                <TextClock
+                    android:id="@+id/date_line_tv"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:format12Hour="dd/MM/yyyy"
+                    android:format24Hour="dd/MM/yyyy"
+                    android:textColor="@color/glass_text_primary"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <FrameLayout
+                android:id="@+id/notifications_area"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="2dp"
+                android:background="@drawable/taskbar_button_bg"
+                android:contentDescription="@string/taskbar_notifications">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_gravity="center"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_eg_bell" />
+
+                <TextView
+                    android:id="@+id/notifications_btn"
+                    android:layout_width="wrap_content"
+                    android:layout_height="16dp"
+                    android:layout_gravity="top|end"
+                    android:layout_marginTop="5dp"
+                    android:layout_marginEnd="4dp"
+                    android:background="@drawable/taskbar_badge_bg"
+                    android:gravity="center"
+                    android:minWidth="16dp"
+                    android:paddingStart="4dp"
+                    android:paddingEnd="4dp"
+                    android:textColor="@color/on_accent"
+                    android:textSize="10.5sp"
+                    android:textStyle="bold"
+                    android:visibility="gone" />
+            </FrameLayout>
         </LinearLayout>
 
+        <!-- Centre: [back][home] Start, Search, Task view, then pinned and open apps -->
         <LinearLayout
-            android:id="@+id/nav_panel"
+            android:id="@+id/center_group"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_alignParentStart="true"
-            android:layout_centerVertical="true"
+            android:layout_centerInParent="true"
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <ImageView
-                android:id="@+id/apps_btn"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_margin="6dp"
-                android:src="@drawable/ic_apps_menu" />
+            <LinearLayout
+                android:id="@+id/nav_panel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-            <ImageView
-                android:id="@+id/back_btn"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_margin="6dp"
-                android:background="@drawable/circle"
-                android:padding="10dp"
-                android:src="@drawable/ic_back"
-                android:visibility="gone" />
+                <ImageView
+                    android:id="@+id/back_btn"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:layout_margin="3dp"
+                    android:background="@drawable/circle"
+                    android:contentDescription="@string/taskbar_back"
+                    android:padding="9dp"
+                    android:src="@drawable/ic_back"
+                    android:visibility="gone" />
 
-            <ImageView
-                android:id="@+id/home_btn"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_margin="6dp"
-                android:background="@drawable/circle"
-                android:padding="10dp"
-                android:src="@drawable/ic_home" />
+                <ImageView
+                    android:id="@+id/home_btn"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:layout_margin="3dp"
+                    android:background="@drawable/circle"
+                    android:contentDescription="@string/taskbar_home"
+                    android:padding="9dp"
+                    android:src="@drawable/ic_home"
+                    android:visibility="gone" />
 
-            <ImageView
-                android:id="@+id/recents_btn"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_margin="6dp"
-                android:background="@drawable/circle"
-                android:padding="10dp"
-                android:src="@drawable/ic_recents" />
+                <ImageView
+                    android:id="@+id/apps_btn"
+                    android:layout_width="44dp"
+                    android:layout_height="42dp"
+                    android:layout_marginStart="1dp"
+                    android:layout_marginEnd="1dp"
+                    android:background="@drawable/taskbar_button_bg"
+                    android:contentDescription="@string/taskbar_start"
+                    android:padding="9dp"
+                    android:src="@drawable/ic_eg_start" />
 
-            <ImageView
-                android:id="@+id/assist_btn"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_margin="6dp"
-                android:background="@drawable/circle"
-                android:padding="8dp"
-                android:src="@drawable/ic_assistant" />
+                <ImageView
+                    android:id="@+id/search_btn"
+                    android:layout_width="44dp"
+                    android:layout_height="42dp"
+                    android:layout_marginStart="1dp"
+                    android:layout_marginEnd="1dp"
+                    android:background="@drawable/taskbar_button_bg"
+                    android:contentDescription="@string/taskbar_search"
+                    android:padding="11dp"
+                    android:src="@drawable/ic_eg_search" />
+
+                <ImageView
+                    android:id="@+id/recents_btn"
+                    android:layout_width="44dp"
+                    android:layout_height="42dp"
+                    android:layout_marginStart="1dp"
+                    android:layout_marginEnd="1dp"
+                    android:background="@drawable/taskbar_button_bg"
+                    android:contentDescription="@string/taskbar_task_view"
+                    android:padding="11dp"
+                    android:src="@drawable/ic_eg_taskview" />
+
+                <ImageView
+                    android:id="@+id/assist_btn"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:layout_margin="3dp"
+                    android:background="@drawable/circle"
+                    android:padding="8dp"
+                    android:src="@drawable/ic_assistant"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/apps_lv"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fadingEdgeLength="16dp"
+                android:overScrollMode="never"
+                android:requiresFadingEdge="horizontal" />
         </LinearLayout>
     </RelativeLayout>
 

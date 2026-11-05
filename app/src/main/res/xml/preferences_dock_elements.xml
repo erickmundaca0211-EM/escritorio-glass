@@ -5,11 +5,11 @@
             android:key="enable_nav_apps"
             android:title="@string/enable_apps_btn" />
         <cu.axel.smartdock.preferences.NavActionChooserPreference
-            android:defaultValue="true"
+            android:defaultValue="false"
             android:key="enable_nav_back"
             android:title="@string/enable_nav_back_title" />
         <cu.axel.smartdock.preferences.NavActionChooserPreference
-            android:defaultValue="true"
+            android:defaultValue="false"
             android:key="enable_nav_home"
             android:title="@string/enable_nav_home_title" />
         <cu.axel.smartdock.preferences.NavActionChooserPreference
@@ -31,7 +31,7 @@
             android:key="enable_qs_bluetooth"
             android:title="@string/enable_qs_bluetooth_title" />
         <SwitchPreferenceCompat
-            android:defaultValue="false"
+            android:defaultValue="true"
             android:key="enable_qs_battery"
             android:title="@string/enable_qs_battery_title" />
         <SwitchPreferenceCompat
