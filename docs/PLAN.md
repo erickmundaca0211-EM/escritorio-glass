@@ -52,6 +52,21 @@ sin errores; el texto se lee bien sobre fondos claros y oscuros.
 
 **Aceptación:** buscar filtra al escribir; anclar/desanclar persiste tras reiniciar; se ve como `Main.png`.
 
+### Hecho el 2026-11-05 (rama `fase-3-inicio`)
+- Probado en el POCO: panel centrado sobre la barra (se achica si no cabe y muestra solo filas completas de
+  Ancladas), búsqueda sin acentos que filtra al escribir (Enter abre la primera), Todas las apps A–Z con letras,
+  Recomendado con "Hace N min" y "Más" (hasta 6), anclar/desanclar desde el menú contextual del menú y de la barra
+  (persiste tras reiniciar el servicio), pie con inicial y nombre.
+- La primera vez se anclan hasta 18 apps comunes que el usuario ya tenga (en el POCO: 13).
+- Se quitó "Buscar en Google": lo que se escribe no sale del teléfono. El teclado en pantalla solo aparece al
+  tocar el buscador.
+- Botón de apagado: Bloquear · **Salir del modo escritorio** (pedido de Daniel: apaga el servicio, quita la
+  barra y el horizontal y restaura la escala) · Apagar o reiniciar. Al abrir la app con el escritorio apagado
+  ofrece "Entrar al modo escritorio".
+- Pendiente de probar con un teclado físico: Windows/Meta abre y cierra, Esc cierra (las teclas inyectadas con
+  adb no llegan al servicio de accesibilidad).
+- Conocido: con el teclado en pantalla abierto, HyperOS sube la barra y el menú por encima del teclado.
+
 ## Fase 4 — Ajustes rápidos y centro de notificaciones
 - Panel de ajustes rápidos 3 × 3 con: Wi-Fi, Bluetooth, Modo avión, Protección visual, Ahorro de energía,
   Horizontal fijo, No molestar, Linterna, Transmitir. Si un botón no puede cambiar el estado directamente
