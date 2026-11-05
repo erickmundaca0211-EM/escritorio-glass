@@ -39,6 +39,11 @@
         <item name="colorPrimary">@color/action</item>
         <item name="colorSecondaryContainer">#FFFFFF</item>
         <item name="colorOnSecondaryContainer">#FFFFFF</item>
+        <!-- Escritorio Glass: Inter on the dock and its panels (docs/DISENO.md) -->
+        <item name="android:fontFamily">@font/inter</item>
+        <item name="fontFamily">@font/inter</item>
+        <item name="android:textColorPrimary">@color/glass_text_primary</item>
+        <item name="android:textColorSecondary">@color/glass_text_secondary</item>
     </style>
 
     <style name="AppTheme.Dock.Dialog" parent="AppTheme.Dock">
