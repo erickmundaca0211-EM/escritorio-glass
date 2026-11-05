@@ -134,6 +134,7 @@ import android.text.format.DateFormat
 import java.util.Locale
 import kotlin.math.max
 import android.view.ViewGroup
+import android.view.ViewTreeObserver
 import android.content.res.ColorStateList
 import android.graphics.drawable.Drawable
 import cu.axel.smartdock.utils.DeepShortcutManager
@@ -226,6 +227,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     private lateinit var startAll: View
     private lateinit var allAppsTitleTv: TextView
     private lateinit var pinnedEmptyTv: TextView
+    private lateinit var pinnedSpacer: View
     private lateinit var noResultsTv: TextView
     private lateinit var recommendedSection: View
     private lateinit var recentLv: RecyclerView
@@ -342,6 +344,9 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         preferSecondaryDisplay = sharedPreferences.getBoolean("prefer_last_display", false)
         // Desktop "app scale": smaller apps and windows while the desktop runs (restored in onDestroy)
         DesktopScale.apply(this, sharedPreferences)
+        // Launchers count as "desktop", never as a full-screen app. Settings also declares a HOME
+        // screen used only while the phone boots (FallbackHome, negative priority): skip it, or
+        // Settings would never hide the bar
         homePackages = packageManager.queryIntentActivities(
             Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0
         ).filter { it.priority >= 0 }.map { it.activityInfo.packageName }.toSet()
@@ -1217,6 +1222,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
                 recentEmptyTv.isVisible = shown.isEmpty()
                 moreRecentBtn.isVisible = recent.size > START_RECENT_DEFAULT
                 moreRecentBtn.setText(if (showAllRecent) R.string.start_less else R.string.start_more)
+                fitPinnedRows()
             }
         }
     }
@@ -2413,6 +2419,40 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         favoritesGv.adapter = PinnedAppsAdapter(context, apps, this, iconPackUtils)
         favoritesGv.isVisible = apps.isNotEmpty()
         pinnedEmptyTv.isVisible = apps.isEmpty()
+        fitPinnedRows()
+    }
+
+    /**
+     * The pinned grid shows only whole rows (a half-cut row of icons looks broken); the leftover
+     * height goes to a spacer above "Recomendado". The grid still scrolls to the other rows.
+     */
+    private fun fitPinnedRows() {
+        val params = favoritesGv.layoutParams as LinearLayout.LayoutParams
+        params.height = 0
+        params.weight = 1f
+        favoritesGv.layoutParams = params
+        pinnedSpacer.isVisible = false
+        favoritesGv.viewTreeObserver.addOnGlobalLayoutListener(object :
+            ViewTreeObserver.OnGlobalLayoutListener {
+            override fun onGlobalLayout() {
+                favoritesGv.viewTreeObserver.removeOnGlobalLayoutListener(this)
+                val child = favoritesGv.getChildAt(0) ?: return
+                val margins = child.layoutParams as ViewGroup.MarginLayoutParams
+                val rowHeight = child.height + margins.topMargin + margins.bottomMargin
+                val room = favoritesGv.height
+                if (rowHeight <= 0 || room <= 0) return
+                val count = favoritesGv.adapter?.itemCount ?: 0
+                val rowsNeeded = (count + START_MENU_COLUMNS - 1) / START_MENU_COLUMNS
+                val rows = (room / rowHeight).coerceAtLeast(1).coerceAtMost(rowsNeeded.coerceAtLeast(1))
+                val height = rows * rowHeight
+                if (height < room) {
+                    params.height = height
+                    params.weight = 0f
+                    favoritesGv.layoutParams = params
+                    pinnedSpacer.isVisible = true
+                }
+            }
+        })
     }
 
     fun takeScreenshot() {
@@ -2735,6 +2775,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         startAll = menu.findViewById(R.id.start_all)
         allAppsTitleTv = menu.findViewById(R.id.all_apps_title_tv)
         pinnedEmptyTv = menu.findViewById(R.id.pinned_empty_tv)
+        pinnedSpacer = menu.findViewById(R.id.pinned_spacer)
         noResultsTv = menu.findViewById(R.id.start_no_results_tv)
         recommendedSection = menu.findViewById(R.id.recommended_section)
         recentLv = menu.findViewById(R.id.recent_lv)
