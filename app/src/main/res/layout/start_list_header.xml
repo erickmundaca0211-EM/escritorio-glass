@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Letter separator of the A-Z list in the Start menu. -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/letter_tv"
+    android:layout_width="match_parent"
+    android:layout_height="28dp"
+    android:gravity="center_vertical"
+    android:importantForAccessibility="no"
+    android:paddingStart="12dp"
+    android:paddingEnd="12dp"
+    android:textColor="@color/glass_text_secondary"
+    android:textFontWeight="600"
+    android:textSize="12sp" />

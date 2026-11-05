@@ -1,0 +1,306 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Escritorio Glass Start menu (docs/DISENO.md, "Menú Inicio"; docs/mockup/Main.png).
+    560 x 434 dp glass panel: search, "Ancladas" 6 x 3 + "Todas las apps", "Recomendado" and a footer with the
+    user and the power button. The A-Z list and the search results replace the home view in place.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/men_layout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/round_rect"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:paddingStart="22dp"
+        android:paddingTop="14dp"
+        android:paddingEnd="22dp"
+        android:paddingBottom="12dp">
+
+        <!-- Search -->
+        <LinearLayout
+            android:id="@+id/search_entry"
+            android:layout_width="match_parent"
+            android:layout_height="36dp"
+            android:background="@drawable/start_search_bg"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp">
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:alpha="0.85"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_eg_search" />
+
+            <EditText
+                android:id="@+id/menu_et"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_marginStart="10dp"
+                android:layout_weight="1"
+                android:background="@null"
+                android:hint="@string/start_search_hint"
+                android:imeOptions="actionGo|flagNoExtractUi"
+                android:importantForAutofill="no"
+                android:inputType="text"
+                android:singleLine="true"
+                android:textColor="@color/glass_text_primary"
+                android:textColorHint="#99FFFFFF"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <!-- Home view: pinned apps and recommended -->
+        <LinearLayout
+            android:id="@+id/start_home"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginTop="10dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="22dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/start_pinned"
+                    android:textColor="@color/glass_text_primary"
+                    android:textFontWeight="600"
+                    android:textSize="13sp" />
+
+                <TextView
+                    android:id="@+id/all_apps_btn"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/start_pill_bg"
+                    android:paddingStart="10dp"
+                    android:paddingTop="3dp"
+                    android:paddingEnd="10dp"
+                    android:paddingBottom="3dp"
+                    android:text="@string/start_all_apps"
+                    android:textColor="@color/glass_text_primary"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/fav_applist_lv"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_marginStart="-2dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginEnd="-2dp"
+                android:layout_weight="1"
+                android:fadingEdgeLength="16dp"
+                android:overScrollMode="never"
+                android:requiresFadingEdge="vertical" />
+
+            <TextView
+                android:id="@+id/pinned_empty_tv"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="@string/start_pinned_empty"
+                android:textColor="@color/glass_text_secondary"
+                android:textSize="12sp"
+                android:visibility="gone" />
+
+            <LinearLayout
+                android:id="@+id/recommended_section"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="20dp"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/start_recommended"
+                        android:textColor="@color/glass_text_primary"
+                        android:textFontWeight="600"
+                        android:textSize="13sp" />
+
+                    <TextView
+                        android:id="@+id/more_recent_btn"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/start_pill_bg"
+                        android:paddingStart="10dp"
+                        android:paddingTop="3dp"
+                        android:paddingEnd="10dp"
+                        android:paddingBottom="3dp"
+                        android:text="@string/start_more"
+                        android:textColor="@color/glass_text_primary"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/recent_lv"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="-4dp"
+                    android:layout_marginTop="6dp"
+                    android:layout_marginEnd="-4dp"
+                    android:overScrollMode="never" />
+
+                <TextView
+                    android:id="@+id/recent_empty_tv"
+                    android:layout_width="match_parent"
+                    android:layout_height="42dp"
+                    android:layout_marginTop="6dp"
+                    android:gravity="center_vertical"
+                    android:text="@string/start_recent_empty"
+                    android:textColor="@color/glass_text_secondary"
+                    android:textSize="12sp"
+                    android:visibility="gone" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- "Todas las apps" (A-Z) and search results -->
+        <LinearLayout
+            android:id="@+id/start_all"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginTop="10dp"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="22dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/all_apps_title_tv"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/start_all_apps_title"
+                    android:textColor="@color/glass_text_primary"
+                    android:textFontWeight="600"
+                    android:textSize="13sp" />
+
+                <TextView
+                    android:id="@+id/start_back_btn"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/start_pill_bg"
+                    android:paddingStart="10dp"
+                    android:paddingTop="3dp"
+                    android:paddingEnd="10dp"
+                    android:paddingBottom="3dp"
+                    android:text="@string/start_back"
+                    android:textColor="@color/glass_text_primary"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/menu_applist_lv"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_marginTop="8dp"
+                android:layout_weight="1"
+                android:fadingEdgeLength="16dp"
+                android:overScrollMode="never"
+                android:requiresFadingEdge="vertical" />
+
+            <TextView
+                android:id="@+id/start_no_results_tv"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="@string/start_no_results"
+                android:textColor="@color/glass_text_secondary"
+                android:textSize="12sp"
+                android:visibility="gone" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Footer: user and power -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:background="@drawable/start_footer_bg"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="18dp"
+        android:paddingEnd="18dp">
+
+        <LinearLayout
+            android:id="@+id/user_btn"
+            android:layout_width="wrap_content"
+            android:layout_height="38dp"
+            android:background="@drawable/taskbar_button_bg"
+            android:contentDescription="@string/start_user_desc"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="4dp"
+            android:paddingEnd="8dp">
+
+            <TextView
+                android:id="@+id/avatar_initial_tv"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:background="@drawable/start_avatar_bg"
+                android:gravity="center"
+                android:importantForAccessibility="no"
+                android:textColor="#2A1C0E"
+                android:textFontWeight="600"
+                android:textSize="13sp" />
+
+            <ImageView
+                android:id="@+id/avatar_iv"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:importantForAccessibility="no"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/user_name_tv"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:maxWidth="220dp"
+                android:singleLine="true"
+                android:textColor="@color/glass_text_primary"
+                android:textFontWeight="500"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <ImageView
+            android:id="@+id/power_btn"
+            android:layout_width="44dp"
+            android:layout_height="36dp"
+            android:background="@drawable/taskbar_button_bg"
+            android:contentDescription="@string/start_power_desc"
+            android:padding="9dp"
+            android:src="@drawable/ic_eg_power" />
+    </LinearLayout>
+</LinearLayout>

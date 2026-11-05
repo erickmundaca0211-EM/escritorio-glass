@@ -36,4 +36,26 @@
     <string name="app_scale_needs_permission">Necesita el permiso de configuración segura (Permisos, Opcional)</string>
     <string name="autohide_fullscreen_title">Ocultar la barra con apps a pantalla completa</string>
     <string name="autohide_fullscreen_summary">Se esconde al segundo; lleva el mouse al borde de abajo para que vuelva</string>
+    <string name="start_search_hint">Buscar apps</string>
+    <string name="start_pinned">Ancladas</string>
+    <string name="start_pinned_empty">Ancla apps aquí: mantén presionada una app o haz clic derecho y elige \"Anclar a Inicio\"</string>
+    <string name="start_all_apps">Todas las apps ›</string>
+    <string name="start_all_apps_title">Todas las apps</string>
+    <string name="start_results">Resultados</string>
+    <string name="start_no_results">Ninguna app coincide con la búsqueda</string>
+    <string name="start_back">‹ Atrás</string>
+    <string name="start_recommended">Recomendado</string>
+    <string name="start_more">Más ›</string>
+    <string name="start_less">‹ Menos</string>
+    <string name="start_recent_empty">Aquí aparecerán las apps que uses</string>
+    <string name="start_pin">Anclar a Inicio</string>
+    <string name="start_unpin">Desanclar de Inicio</string>
+    <string name="start_lock">Bloquear</string>
+    <string name="start_power_options">Apagar o reiniciar…</string>
+    <string name="start_power_desc">Apagar o bloquear</string>
+    <string name="start_user_desc">Ajustes de Escritorio Glass</string>
+    <string name="recent_now">Ahora</string>
+    <string name="recent_minutes">Hace %d min</string>
+    <string name="recent_hours">Hace %d h</string>
+    <string name="recent_yesterday">Ayer, %s</string>
 </resources>

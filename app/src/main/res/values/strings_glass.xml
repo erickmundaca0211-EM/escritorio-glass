@@ -37,4 +37,26 @@
     <string name="app_scale_needs_permission">Needs the secure settings permission (Permissions, Optional)</string>
     <string name="autohide_fullscreen_title">Hide the taskbar over full-screen apps</string>
     <string name="autohide_fullscreen_summary">It slides away after 1 second; move the mouse to the bottom edge to bring it back</string>
+    <string name="start_search_hint">Search apps</string>
+    <string name="start_pinned">Pinned</string>
+    <string name="start_pinned_empty">Pin apps here: long-press or right-click an app and choose \"Pin to Start\"</string>
+    <string name="start_all_apps">All apps ›</string>
+    <string name="start_all_apps_title">All apps</string>
+    <string name="start_results">Results</string>
+    <string name="start_no_results">No apps match your search</string>
+    <string name="start_back">‹ Back</string>
+    <string name="start_recommended">Recommended</string>
+    <string name="start_more">More ›</string>
+    <string name="start_less">‹ Less</string>
+    <string name="start_recent_empty">The apps you use will show up here</string>
+    <string name="start_pin">Pin to Start</string>
+    <string name="start_unpin">Unpin from Start</string>
+    <string name="start_lock">Lock</string>
+    <string name="start_power_options">Shut down or restart…</string>
+    <string name="start_power_desc">Shut down or lock</string>
+    <string name="start_user_desc">Escritorio Glass settings</string>
+    <string name="recent_now">Just now</string>
+    <string name="recent_minutes">%d min ago</string>
+    <string name="recent_hours">%d h ago</string>
+    <string name="recent_yesterday">Yesterday, %s</string>
 </resources>
