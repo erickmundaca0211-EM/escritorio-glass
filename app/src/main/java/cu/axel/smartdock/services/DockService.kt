@@ -470,7 +470,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             anchor.getLocationOnScreen(location)
             layoutParams.x = location[0]
             view.setOnTouchListener { _, event ->
-                if (event.action == MotionEvent.ACTION_OUTSIDE) {
+                if (event.action == MotionEvent.ACTION_OUTSIDE && view.isAttachedToWindow) {
                     windowManager.removeView(view)
                 }
                 false
@@ -1093,7 +1093,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         anchor.getLocationOnScreen(location)
         layoutParams.x = location[0]
         view.setOnTouchListener { _, event ->
-            if (event.action == MotionEvent.ACTION_OUTSIDE)
+            if (event.action == MotionEvent.ACTION_OUTSIDE && view.isAttachedToWindow)
                 windowManager.removeView(view)
 
             false
@@ -1205,7 +1205,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         layoutParams.x = location[0]
         layoutParams.y = location[1] + Utils.dpToPx(context, anchor.measuredHeight / 2)
         view.setOnTouchListener { _, event ->
-            if (event.action == MotionEvent.ACTION_OUTSIDE)
+            if (event.action == MotionEvent.ACTION_OUTSIDE && view.isAttachedToWindow)
                 windowManager.removeView(view)
 
             false
@@ -1641,7 +1641,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     }
 
     private fun hideQuickSettingsPanel() {
-        windowManager.removeView(quickSettingsPanel)
+        quickSettingsPanel?.let { if (it.isAttachedToWindow) windowManager.removeView(it) }
         quickSettingsPanelVisible = false
         quickSettingsPanel = null
         notificationsLv = null
@@ -1664,9 +1664,11 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         quickSettingsPanel =
             LayoutInflater.from(ContextThemeWrapper(context, R.style.AppTheme_Dock))
                 .inflate(R.layout.quick_settings_panel, null) as LinearLayout
-        quickSettingsPanel!!.setOnTouchListener { _, event ->
-            if (event.action == MotionEvent.ACTION_OUTSIDE
-                && (event.y < quickSettingsPanel!!.measuredHeight || event.x < quickSettingsPanel!!.x)
+        // Use the touched view, not the field: an outside touch can still arrive after the panel
+        // was closed (field already null), which used to crash the service
+        quickSettingsPanel!!.setOnTouchListener { view, event ->
+            if (event.action == MotionEvent.ACTION_OUTSIDE && quickSettingsPanelVisible
+                && (event.y < view.measuredHeight || event.x < view.x)
             )
                 hideQuickSettingsPanel()
 
@@ -1896,7 +1898,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
                 or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH)
         powerMenu = LayoutInflater.from(context).inflate(R.layout.power_menu, null) as LinearLayout
         powerMenu!!.setOnTouchListener { _, event ->
-            if (event.action == MotionEvent.ACTION_OUTSIDE)
+            if (event.action == MotionEvent.ACTION_OUTSIDE && powerMenuVisible)
                 hidePowerMenu()
 
             false
@@ -2368,9 +2370,9 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         updateAppMenu()
 
         //TODO: Filter app button menu click only
-        appMenu!!.setOnTouchListener { _, event ->
-            if (event.action == MotionEvent.ACTION_OUTSIDE
-                && (event.y < appMenu!!.measuredHeight || event.x > appMenu!!.measuredWidth)
+        appMenu!!.setOnTouchListener { view, event ->
+            if (event.action == MotionEvent.ACTION_OUTSIDE && appMenuVisible
+                && (event.y < view.measuredHeight || event.x > view.measuredWidth)
             ) {
                 hideAppMenu()
             }
