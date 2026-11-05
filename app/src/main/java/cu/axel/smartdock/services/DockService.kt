@@ -1249,12 +1249,27 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         }
         val actions = arrayListOf(
             Action(R.drawable.ic_lock, getString(R.string.start_lock)),
+            Action(R.drawable.ic_close, getString(R.string.start_exit_desktop)),
             Action(R.drawable.ic_power, getString(R.string.start_power_options))
         )
         showPopupAbove(anchor, actions) { position ->
             hideAppMenu()
-            if (position == 0) lockScreen() else performGlobalAction(GLOBAL_ACTION_POWER_DIALOG)
+            when (position) {
+                0 -> lockScreen()
+                1 -> exitDesktop()
+                else -> performGlobalAction(GLOBAL_ACTION_POWER_DIALOG)
+            }
         }
+    }
+
+    /**
+     * Leaves desktop mode so the phone works as usual: the service turns itself off, which removes the
+     * taskbar, the landscape lock and restores the user's screen scale (onDestroy). Opening the
+     * Escritorio Glass app offers to come back.
+     */
+    private fun exitDesktop() {
+        Toast.makeText(this, R.string.desktop_off_toast, Toast.LENGTH_LONG).show()
+        disableSelf()
     }
 
     /** Small glass list of actions right above [anchor], aligned to its right edge. */

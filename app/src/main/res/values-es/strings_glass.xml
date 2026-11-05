@@ -58,4 +58,10 @@
     <string name="recent_minutes">Hace %d min</string>
     <string name="recent_hours">Hace %d h</string>
     <string name="recent_yesterday">Ayer, %s</string>
+    <string name="start_exit_desktop">Salir del modo escritorio</string>
+    <string name="desktop_off_toast">Modo escritorio apagado. Abre Escritorio Glass para volver.</string>
+    <string name="desktop_off_title">El modo escritorio está apagado</string>
+    <string name="desktop_off_message">Tu teléfono funciona como siempre. ¿Quieres volver al escritorio?</string>
+    <string name="desktop_enter">Entrar al modo escritorio</string>
+    <string name="desktop_not_now">Ahora no</string>
 </resources>

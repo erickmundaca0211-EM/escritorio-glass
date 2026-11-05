@@ -59,4 +59,10 @@
     <string name="recent_minutes">%d min ago</string>
     <string name="recent_hours">%d h ago</string>
     <string name="recent_yesterday">Yesterday, %s</string>
+    <string name="start_exit_desktop">Exit desktop mode</string>
+    <string name="desktop_off_toast">Desktop mode is off. Open Escritorio Glass to come back.</string>
+    <string name="desktop_off_title">Desktop mode is off</string>
+    <string name="desktop_off_message">Your phone works as usual. Do you want to go back to the desktop?</string>
+    <string name="desktop_enter">Enter desktop mode</string>
+    <string name="desktop_not_now">Not now</string>
 </resources>

@@ -86,7 +86,13 @@ class MainActivity : AppCompatActivity() {
         if (!DeviceUtils.hasStoragePermission(this)) {
             DeviceUtils.requestStoragePermissions(this)
         }
-        if (!DeviceUtils.canDrawOverOtherApps(this) || !DeviceUtils.isAccessibilityServiceEnabled(
+        if (DeviceUtils.canDrawOverOtherApps(this) &&
+            !DeviceUtils.isAccessibilityServiceEnabled(this) &&
+            DeviceUtils.hasWriteSettingsPermission(this)
+        )
+            // Desktop mode was turned off (power menu > "Salir del modo escritorio"): offer to come back
+            showEnterDesktopDialog()
+        else if (!DeviceUtils.canDrawOverOtherApps(this) || !DeviceUtils.isAccessibilityServiceEnabled(
                 this
             )
         )
@@ -125,6 +131,15 @@ class MainActivity : AppCompatActivity() {
             R.id.action_grant_permissions -> showPermissionsDialog()
         }
         return super.onOptionsItemSelected(item)
+    }
+
+    private fun showEnterDesktopDialog() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.desktop_off_title)
+            .setMessage(R.string.desktop_off_message)
+            .setPositiveButton(R.string.desktop_enter) { _, _ -> DeviceUtils.enableService(this) }
+            .setNegativeButton(R.string.desktop_not_now, null)
+            .show()
     }
 
     private fun showPermissionsDialog() {
