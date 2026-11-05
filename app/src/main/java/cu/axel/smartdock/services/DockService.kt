@@ -249,7 +249,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     // used, never what the windows show (CLAUDE.md).
     private var autoHidden = false
     private var autoHideSuppressed = false
-    private var foregroundPackage = ""
+    private val windowPackages = HashMap<Int, String>() // accessibility window id -> package
     private var homePackages = emptySet<String>()
     private val autoHideHandler = Handler(Looper.getMainLooper())
     private val fullscreenCheck = Runnable { checkFullscreenApp() }
@@ -344,7 +344,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         DesktopScale.apply(this, sharedPreferences)
         homePackages = packageManager.queryIntentActivities(
             Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0
-        ).map { it.activityInfo.packageName }.toSet()
+        ).filter { it.priority >= 0 }.map { it.activityInfo.packageName }.toSet()
         // The first time, pin common apps to the Start menu so "Ancladas" isn't empty
         CoroutineScope(Dispatchers.Default).launch {
             StartMenuUtils.pinDefaultAppsOnce(this@DockService, sharedPreferences)
@@ -892,26 +892,38 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             kc.showMode = SHOW_MODE_HIDDEN
     }
 
-    /** Package of the app whose window is in front (from the event, never from window content). */
+    /**
+     * Remembers which app each window belongs to, from the window events (package name only, never
+     * window content). The window may not be in [getWindows] yet when its event arrives, so the
+     * match is made later, when checking the active window.
+     */
     private fun rememberForegroundApp(event: AccessibilityEvent) {
         val app = event.packageName?.toString() ?: return
-        val window = windows.firstOrNull { it.id == event.windowId } ?: return
-        if (window.type == AccessibilityWindowInfo.TYPE_APPLICATION)
-            foregroundPackage = app
+        if (event.windowId != -1) windowPackages[event.windowId] = app
     }
 
     /** True when the app in front is not a launcher and its window covers the whole screen. */
     private fun isFullscreenAppInFront(): Boolean {
-        if (foregroundPackage.isEmpty() || foregroundPackage == packageName ||
-            foregroundPackage in homePackages
-        ) return false
-        val window = windows.firstOrNull {
+        val current = windows
+        if (windowPackages.size > 64) {
+            val alive = current.map { it.id }.toSet()
+            windowPackages.keys.retainAll(alive)
+        }
+        val window = current.firstOrNull {
             it.type == AccessibilityWindowInfo.TYPE_APPLICATION && (it.isActive || it.isFocused)
         } ?: return false
+        // Unknown window (no event seen yet): keep the bar
+        val app = windowPackages[window.id] ?: return false
+        if (app == packageName || app in homePackages) return false
         val bounds = Rect()
         window.getBoundsInScreen(bounds)
-        val screen = DeviceUtils.getDisplayBounds(context, Display.DEFAULT_DISPLAY)
-        return bounds.width() >= screen.width() * 0.95f && bounds.height() >= screen.height() * 0.9f
+        // The real screen right now, from the service's own window manager
+        val screen = windowManager.maximumWindowMetrics.bounds
+        // Full screen = the window goes from the top edge to the bottom edge, under the bar. Width is
+        // not checked: portrait-only apps run full screen with black bands on the sides. HyperOS
+        // floating windows always start below the status bar.
+        val edge = screen.height() * 0.02f
+        return bounds.top <= screen.top + edge && bounds.bottom >= screen.bottom - edge
     }
 
     private fun autoHideEnabled() = sharedPreferences.getBoolean(KEY_AUTOHIDE_FULLSCREEN, true)
@@ -2497,7 +2509,10 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         // With a lowered app scale the taskbar and its panels keep their own, larger scale: views
         // are inflated and measured with this context
         DesktopScale.barDensity(sharedPreferences)?.let { density ->
-            val config = Configuration(context.resources.configuration)
+            // Override only the density: a full copy of the configuration would freeze the
+            // orientation and screen size of this moment (the service may start while the phone is
+            // still in portrait) and break every size measured with this context
+            val config = Configuration()
             config.densityDpi = density
             context = context.createConfigurationContext(config)
         }
