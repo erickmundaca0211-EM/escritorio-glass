@@ -32,6 +32,13 @@
 | Ahorro de batería activado por Daniel desde el centro de control | `dumpsys power`: `mIsPowerSaveModeEnabled: true`; HyperOS usa `system/POWER_SAVE_MODE_OPEN=1` (la clave estándar `global/low_power` sigue en `0`). `dumpsys window`: `mBlurEnabled=true`. El listener `addCrossWindowBlurEnabledListener` **no se disparó**. |
 | `adb shell cmd power set-mode 1` | Sin efecto en HyperOS (`isPowerSaveMode` siguió en `false`). |
 
+> **Actualización (Fase 1, 2026-11-05):** con el ahorro de batería de HyperOS activo, `PowerManager.isPowerSaveMode()`
+> devuelve **`false`** a las apps (aunque `dumpsys power` muestre `mIsPowerSaveModeEnabled: true`), y el aviso que se
+> envía es `miui.intent.action.POWER_SAVE_MODE_CHANGED` en lugar del estándar. El estado fiable es
+> `Settings.System` **`POWER_SAVE_MODE_OPEN`** (1/0), que la app puede leer y vigilar con un `ContentObserver`.
+> `GlassController` usa las tres señales; probado en el POCO: al activar el ahorro la barra pasa al nivel 1 y al
+> desactivarlo vuelve el desenfoque.
+
 **Conclusión:** el nivel 2 del vidrio es viable con `BackgroundBlurDrawable` en los overlays que ya usa Smart Dock.
 `FLAG_BLUR_BEHIND` solo sirve como fondo difuminado de pantalla completa (por ejemplo, detrás del menú Inicio).
 En HyperOS **el ahorro de batería no apaga el desenfoque**, así que la app debe bajar sola al nivel 1 consultando

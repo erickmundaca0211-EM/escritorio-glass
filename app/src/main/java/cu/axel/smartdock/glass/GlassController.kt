@@ -5,9 +5,13 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
+import android.database.ContentObserver
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.LayerDrawable
+import android.os.Handler
+import android.os.Looper
 import android.os.PowerManager
+import android.provider.Settings
 import android.util.Log
 import android.view.View
 import android.view.WindowManager
@@ -26,6 +30,10 @@ import kotlin.math.roundToInt
  */
 object GlassController {
     private const val TAG = "EG"
+    private const val MIUI_POWER_SAVE_MODE_CHANGED = "miui.intent.action.POWER_SAVE_MODE_CHANGED"
+
+    /** HyperOS battery saver state; PowerManager.isPowerSaveMode() stays false there. */
+    private const val MIUI_POWER_SAVE_SETTING = "POWER_SAVE_MODE_OPEN"
 
     private val surfaces = WeakHashMap<View, GlassSurface>()
     private var startedWith: Context? = null
@@ -42,12 +50,25 @@ object GlassController {
     }
 
     private val powerReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            val pm = context.getSystemService(PowerManager::class.java)
-            powerSave = pm.isPowerSaveMode
-            Log.d(TAG, "glass: battery saver=$powerSave")
-            refreshAll()
+        override fun onReceive(context: Context, intent: Intent) = updatePowerSave(context)
+    }
+
+    private val powerObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
+        override fun onChange(selfChange: Boolean) {
+            startedWith?.let { updatePowerSave(it) }
         }
+    }
+
+    private fun readPowerSave(context: Context): Boolean =
+        context.getSystemService(PowerManager::class.java).isPowerSaveMode ||
+                Settings.System.getInt(context.contentResolver, MIUI_POWER_SAVE_SETTING, 0) == 1
+
+    private fun updatePowerSave(context: Context) {
+        val now = readPowerSave(context)
+        if (now == powerSave) return
+        powerSave = now
+        Log.d(TAG, "glass: battery saver=$powerSave")
+        refreshAll()
     }
 
     private val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
@@ -62,11 +83,16 @@ object GlassController {
         windowManager = wm
         blurAllowedBySystem = wm.isCrossWindowBlurEnabled
         wm.addCrossWindowBlurEnabledListener(context.mainExecutor, blurListener)
-        powerSave = context.getSystemService(PowerManager::class.java).isPowerSaveMode
+        powerSave = readPowerSave(context)
+        context.contentResolver.registerContentObserver(
+            Settings.System.getUriFor(MIUI_POWER_SAVE_SETTING), false, powerObserver
+        )
+        // HyperOS only sends its own action when its battery saver changes (docs/SPIKES.md)
+        val powerFilter = IntentFilter(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED).apply {
+            addAction(MIUI_POWER_SAVE_MODE_CHANGED)
+        }
         ContextCompat.registerReceiver(
-            context, powerReceiver,
-            IntentFilter(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED),
-            ContextCompat.RECEIVER_NOT_EXPORTED
+            context, powerReceiver, powerFilter, ContextCompat.RECEIVER_NOT_EXPORTED
         )
         PreferenceManager.getDefaultSharedPreferences(context)
             .registerOnSharedPreferenceChangeListener(prefListener)
@@ -80,6 +106,7 @@ object GlassController {
             context.unregisterReceiver(powerReceiver)
         } catch (_: IllegalArgumentException) {
         }
+        context.contentResolver.unregisterContentObserver(powerObserver)
         PreferenceManager.getDefaultSharedPreferences(context)
             .unregisterOnSharedPreferenceChangeListener(prefListener)
         startedWith = null
