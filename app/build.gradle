@@ -1,3 +1,5 @@
+import com.android.build.api.artifact.SingleArtifact
+
 plugins {
     id 'com.android.application'
     id 'kotlin-android'
@@ -48,4 +50,48 @@ dependencies {
     implementation 'com.github.ChickenHook:RestrictionBypass:2.2'
     implementation 'dev.rikka.shizuku:api:13.1.5'
     implementation 'dev.rikka.shizuku:provider:13.1.5'
+}
+
+// ---------------------------------------------------------------------------------------------
+// Security rule 1 (CLAUDE.md): the app must never get android.permission.INTERNET.
+// The merged manifest (app + every dependency) of every variant goes through this transform
+// before packaging, so assemble/install/bundle all fail if the permission shows up.
+// Do not remove or disable this check.
+// ---------------------------------------------------------------------------------------------
+abstract class VerifyNoInternetPermissionTask extends DefaultTask {
+    @InputFile
+    @PathSensitive(PathSensitivity.NONE)
+    abstract RegularFileProperty getMergedManifest()
+
+    @OutputFile
+    abstract RegularFileProperty getVerifiedManifest()
+
+    @TaskAction
+    void verify() {
+        File input = mergedManifest.get().asFile
+        def manifest = new groovy.xml.XmlSlurper(false, false).parse(input)
+        def forbidden = manifest.children().findAll {
+            (it.name() == 'uses-permission' || it.name() == 'uses-permission-sdk-23') &&
+                    it.'@android:name'.text() == 'android.permission.INTERNET'
+        }
+        if (!forbidden.isEmpty()) {
+            throw new GradleException(
+                    "android.permission.INTERNET found in the merged manifest (${input}).\n" +
+                    "Escritorio Glass must never have internet access (CLAUDE.md, security rule 1).\n" +
+                    "Find the dependency that adds it with :app:process<Variant>Manifest and the " +
+                    "manifest-merger report, then remove it or add tools:node=\"remove\" on purpose.")
+        }
+        verifiedManifest.get().asFile.bytes = input.bytes
+    }
+}
+
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        def verifyTask = project.tasks.register(
+                "verify${variant.name.capitalize()}NoInternetPermission",
+                VerifyNoInternetPermissionTask)
+        variant.artifacts.use(verifyTask)
+                .wiredWithFiles({ it.mergedManifest }, { it.verifiedManifest })
+                .toTransform(SingleArtifact.MERGED_MANIFEST.INSTANCE)
+    }
 }
