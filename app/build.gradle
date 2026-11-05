@@ -8,7 +8,8 @@ android {
     namespace "cu.axel.smartdock"
 	
     defaultConfig {
-        applicationId "cu.axel.smartdock"
+        // Escritorio Glass: own applicationId; the Kotlin namespace stays as upstream to ease merges
+        applicationId "pe.vega.escritorioglass"
         minSdk 30
         targetSdk 36
         versionCode 1150

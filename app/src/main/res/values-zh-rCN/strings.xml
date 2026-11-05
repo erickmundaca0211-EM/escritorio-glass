@@ -1,7 +1,7 @@
 <resources>
 
     <!-- General -->
-    <string name="app_name">Smart Dock</string>
+    <string name="app_name">Escritorio Glass</string>
     <string name="none">无</string>
     <string name="move">移动</string>
     <string name="ok">确定</string>
@@ -29,7 +29,7 @@
     <string name="overlays_in_settings">允许在设置中覆盖</string>
     <string name="overlays_in_settings_desc">允许在设置应用打开时保持dock可见。这将允许<b>任何应用</b>在设置应用上层显示内容,而不仅仅是Dock。需要从开发者选项中启用</string>
     <string name="write_secure">写入安全设置</string>
-    <string name="write_secure_desc">使用高级设置所需。这是一个特殊权限,需要通过root或adb执行以下命令授予:\npm grant cu.axel.smartdock android.permission.WRITE_SECURE_SETTINGS</string>
+    <string name="write_secure_desc">使用高级设置所需。这是一个特殊权限,需要通过root或adb执行以下命令授予:\npm grant pe.vega.escritorioglass android.permission.WRITE_SECURE_SETTINGS</string>
     <string name="manage">管理…</string>
     <string name="grant">授予</string>
     <string name="enable">启用</string>
@@ -295,8 +295,8 @@
     <string name="display_settings">显示设置</string>
 
     <!-- Toasts -->
-    <string name="start_message">Smart Dock已启动</string>
-    <string name="enable_access_help">找到并启用Smart Dock服务</string>
+    <string name="start_message">Escritorio Glass已启动</string>
+    <string name="enable_access_help">找到并启用Escritorio Glass服务</string>
 
     <!-- Crash dialog -->
     <string name="something_wrong">出了点问题</string>
@@ -319,13 +319,13 @@
     <string name="dock_background_opacity">Background opacity</string>
     <string name="override_dock_background_opacity">Override background opacity</string>
     <string name="dock_hidden">Dock hidden</string>
-    <string name="dock_hidden_message_handle">Smart Dock has been hidden, you can activate it again by tapping on the handle</string>
+    <string name="dock_hidden_message_handle">Escritorio Glass has been hidden, you can activate it again by tapping on the handle</string>
     <string name="close">Close</string>
     <string name="hide_notifications">Hide notifications</string>
     <string name="hide_notification_panel">Hide notifications for this app from the panel? You can configure hidden notifications in Notification panel settings</string>
-    <string name="dock_hidden_message_swipe">Smart Dock has been hidden, you can activate it again by:\n- Swiping up from the bottom of the screen (phone)\n- Hovering the mouse pointer near the bottom of the screen (desktop)</string>
+    <string name="dock_hidden_message_swipe">Escritorio Glass has been hidden, you can activate it again by:\n- Swiping up from the bottom of the screen (phone)\n- Hovering the mouse pointer near the bottom of the screen (desktop)</string>
     <string name="shizuku_permission">Shizuku access</string>
-    <string name="shizuku_permission_desc">Allows Smart Dock to access some restricted system functions thrugh Shizuku</string>
+    <string name="shizuku_permission_desc">Allows Escritorio Glass to access some restricted system functions thrugh Shizuku</string>
     <string name="shizuku_is_not_running">Shizuku is not running</string>
     <string name="resize">Resize...</string>
     <string name="snap">Snap...</string>

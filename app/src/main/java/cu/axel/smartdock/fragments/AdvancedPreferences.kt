@@ -50,7 +50,7 @@ class AdvancedPreferences : PreferenceFragmentCompat() {
 
         findPreference<Preference>("root_category")!!.isEnabled = rootAvailable
         if (rootAvailable && !hasWriteSettingsPermission) {
-            DeviceUtils.grantPermission(Manifest.permission.WRITE_SECURE_SETTINGS)
+            DeviceUtils.grantPermission(requireContext(), Manifest.permission.WRITE_SECURE_SETTINGS)
             hasWriteSettingsPermission = DeviceUtils.hasWriteSettingsPermission(requireContext())
         }
 

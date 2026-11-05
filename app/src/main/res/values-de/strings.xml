@@ -1,7 +1,7 @@
 <resources>
 
     <!-- General -->
-    <string name="app_name">Smart Dock</string>
+    <string name="app_name">Escritorio Glass</string>
     <string name="none">Keine</string>
     <string name="move">Bewegen</string>
     <string name="ok">OK</string>
@@ -29,7 +29,7 @@
     <string name="overlays_in_settings">Overlays auf Einstellungen zulassen</string>
     <string name="overlays_in_settings_desc">Wird verwendet, um das Dock sichtbar zu halten, während die Einstellungen-App geöffnet ist. Dies erlaubt <b>jede App</b>zur Anzeige von Inhalten über der Einstellungs-App und nicht nur im Dock. Muss in den Entwickleroptionen aktiviert werden.</string>
     <string name="write_secure">Sichere Schreibeinstellungen</string>
-    <string name="write_secure_desc">Erforderlich für erweiterte Einstellungen. Dies ist eine spezielle Berechtigung, die mit ROOT oder ADB gewährt werden, indem man folgendes ausführt: \npm grant cu.axel.smartdock android.permission.WRITE_SECURE_SETTINGS</string>
+    <string name="write_secure_desc">Erforderlich für erweiterte Einstellungen. Dies ist eine spezielle Berechtigung, die mit ROOT oder ADB gewährt werden, indem man folgendes ausführt: \npm grant pe.vega.escritorioglass android.permission.WRITE_SECURE_SETTINGS</string>
     <string name="manage">Verwalte…</string>
     <string name="grant">Genehmigung</string>
     <string name="enable">Aktivieren</string>
@@ -296,8 +296,8 @@
     <string name="display_settings">Anzeigeeinstellungen</string>
 
     <!-- Toasts -->
-    <string name="start_message">Smart Dock gestartet</string>
-    <string name="enable_access_help">Smart Dock-Dienst suchen und aktivieren</string>
+    <string name="start_message">Escritorio Glass gestartet</string>
+    <string name="enable_access_help">Escritorio Glass-Dienst suchen und aktivieren</string>
 
     <!-- Crash dialog -->
     <string name="something_wrong">Etwas ist schief gelaufen</string>
@@ -319,13 +319,13 @@
     <string name="dock_background_opacity">Background opacity</string>
     <string name="override_dock_background_opacity">Override background opacity</string>
     <string name="dock_hidden">Dock hidden</string>
-    <string name="dock_hidden_message_handle">Smart Dock has been hidden, you can activate it again by tapping on the handle</string>
+    <string name="dock_hidden_message_handle">Escritorio Glass has been hidden, you can activate it again by tapping on the handle</string>
     <string name="close">Close</string>
     <string name="hide_notifications">Hide notifications</string>
     <string name="hide_notification_panel">Hide notifications for this app from the panel? You can configure hidden notifications in Notification panel settings</string>
-    <string name="dock_hidden_message_swipe">Smart Dock has been hidden, you can activate it again by:\n- Swiping up from the bottom of the screen (phone)\n- Hovering the mouse pointer near the bottom of the screen (desktop)</string>
+    <string name="dock_hidden_message_swipe">Escritorio Glass has been hidden, you can activate it again by:\n- Swiping up from the bottom of the screen (phone)\n- Hovering the mouse pointer near the bottom of the screen (desktop)</string>
     <string name="shizuku_permission">Shizuku access</string>
-    <string name="shizuku_permission_desc">Allows Smart Dock to access some restricted system functions thrugh Shizuku</string>
+    <string name="shizuku_permission_desc">Allows Escritorio Glass to access some restricted system functions thrugh Shizuku</string>
     <string name="shizuku_is_not_running">Shizuku is not running</string>
     <string name="resize">Resize...</string>
     <string name="snap">Snap...</string>

@@ -1,7 +1,7 @@
 <resources>
 
     <!-- General -->
-    <string name="app_name">Smart Dock</string>
+    <string name="app_name">Escritorio Glass</string>
     <string name="none">None</string>
     <string name="move">Move…</string>
     <string name="ok">OK</string>
@@ -29,7 +29,7 @@
     <string name="overlays_in_settings">Allow overlays on Settings</string>
     <string name="overlays_in_settings_desc">Used to keep the dock visible while the Settings app is open. This allows <b>any app</b> to display content on top of the Settings app not just the Dock. Must be enabled from Developer options</string>
     <string name="write_secure">Write secure settings</string>
-    <string name="write_secure_desc">Needed for advanced settings. This is a special permission that must be granted with root or adb by running: \npm grant cu.axel.smartdock android.permission.WRITE_SECURE_SETTINGS</string>
+    <string name="write_secure_desc">Needed for advanced settings. This is a special permission that must be granted with root or adb by running: \npm grant pe.vega.escritorioglass android.permission.WRITE_SECURE_SETTINGS</string>
     <string name="manage">Manage…</string>
     <string name="grant">Grant</string>
     <string name="enable">Enable</string>
@@ -248,9 +248,9 @@
 
     <!-- Help and about page -->
     <string name="help_and_about">Help and about</string>
-    <string name="a_launcher_for_android_x86_by_">A launcher for Android x86 by Axel358</string>
+    <string name="a_launcher_for_android_x86_by_">Based on Smart Dock by Axel358 · GPL-3.0</string>
     <string name="help">Help</string>
-    <string name="smart_dock_its_free_and_open_">Smart Dock is free and open source. Contribute on GitHub</string>
+    <string name="smart_dock_its_free_and_open_">Escritorio Glass is a fork of Smart Dock, free and open source. See the original project on GitHub</string>
     <string name="github">GitHub</string>
     <string name="show_help_summary">Tap for help</string>
     <string name="app_help">    The application should be installed as a system app in order to obtain the right permissions.
@@ -301,8 +301,8 @@
     <string name="display_settings">Display settings</string>
 
     <!-- Toasts -->
-    <string name="start_message">Smart Dock started</string>
-    <string name="enable_access_help">Find and enable Smart Dock service</string>
+    <string name="start_message">Escritorio Glass started</string>
+    <string name="enable_access_help">Find and enable Escritorio Glass service</string>
 
     <!-- Crash dialog -->
     <string name="something_wrong">Something went wrong</string>
@@ -317,13 +317,13 @@
     <string name="dock_background_opacity">Background opacity</string>
     <string name="override_dock_background_opacity">Override background opacity</string>
     <string name="dock_hidden">Dock hidden</string>
-    <string name="dock_hidden_message_handle">Smart Dock has been hidden, you can activate it again by tapping on the handle</string>
+    <string name="dock_hidden_message_handle">Escritorio Glass has been hidden, you can activate it again by tapping on the handle</string>
     <string name="close">Close</string>
     <string name="hide_notifications">Hide notifications</string>
     <string name="hide_notification_panel">Hide notifications for this app from the panel? You can configure hidden notifications in Notification panel settings</string>
-    <string name="dock_hidden_message_swipe">Smart Dock has been hidden, you can activate it again by:\n- Swiping up from the bottom of the screen (phone)\n- Hovering the mouse pointer near the bottom of the screen (desktop)</string>
+    <string name="dock_hidden_message_swipe">Escritorio Glass has been hidden, you can activate it again by:\n- Swiping up from the bottom of the screen (phone)\n- Hovering the mouse pointer near the bottom of the screen (desktop)</string>
     <string name="shizuku_permission">Shizuku access</string>
-    <string name="shizuku_permission_desc">Allows Smart Dock to access some restricted system functions through Shizuku</string>
+    <string name="shizuku_permission_desc">Allows Escritorio Glass to access some restricted system functions through Shizuku</string>
     <string name="shizuku_is_not_running">Shizuku is not running</string>
     <string name="resize">Resize…</string>
     <string name="snap">Snap…</string>

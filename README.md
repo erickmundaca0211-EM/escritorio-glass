@@ -1,3 +1,9 @@
+> **Escritorio Glass** (`pe.vega.escritorioglass`) es un fork de **Smart Dock** de
+> [Axel358](https://github.com/axel358/smartdock), distribuido bajo la misma licencia
+> [GPL-3.0](LICENSE). Todo el mérito del código original es de su autor y colaboradores
+> ([Contributors.md](Contributors.md)). El README propio del fork se escribirá en la Fase 6;
+> lo que sigue es el README original de Smart Dock.
+
 <div align="center">
   <h1>Smart Dock</h1>
   A user-friendly desktop mode launcher that offers a modern and customizable user interface
