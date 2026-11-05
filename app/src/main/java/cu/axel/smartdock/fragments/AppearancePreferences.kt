@@ -61,7 +61,7 @@ class AppearancePreferences : PreferenceFragmentCompat() {
             }
         })
         mainColorPref.isVisible =
-            mainColorPref.sharedPreferences!!.getString("theme", "dark") == "custom"
+            mainColorPref.sharedPreferences!!.getString("theme", ColorUtils.DEFAULT_THEME) == "custom"
         findPreference<Preference>("tint_indicators")!!.isVisible =
             AppUtils.isSystemApp(requireContext(), requireContext().packageName) || DeviceUtils.hasShizukuPermission()
 

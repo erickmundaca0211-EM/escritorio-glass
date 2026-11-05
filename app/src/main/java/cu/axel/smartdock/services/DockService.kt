@@ -117,6 +117,10 @@ import cu.axel.smartdock.receivers.SoundEventsReceiver
 import cu.axel.smartdock.utils.AppUtils
 import cu.axel.smartdock.utils.ColorUtils
 import cu.axel.smartdock.utils.ColorUtils.getMainColors
+import cu.axel.smartdock.glass.GlassController
+import cu.axel.smartdock.glass.GlassSurface
+import android.content.res.ColorStateList
+import android.graphics.drawable.Drawable
 import cu.axel.smartdock.utils.DeepShortcutManager
 import cu.axel.smartdock.utils.DeviceUtils
 import cu.axel.smartdock.utils.IconPackUtils
@@ -457,7 +461,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         } else if (tasks.size > 1) {
             val view = LayoutInflater.from(context).inflate(R.layout.task_list, null)
             val layoutParams = Utils.makeWindowParams(-2, -2, context, preferSecondaryDisplay)
-            ColorUtils.applyMainColor(context, sharedPreferences, view)
+            ColorUtils.applyMainColor(context, sharedPreferences, view, GlassSurface.POPUP)
             layoutParams.gravity = Gravity.BOTTOM or Gravity.START
             layoutParams.flags = (WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
                     or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH)
@@ -537,7 +541,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         layoutParams.gravity = Gravity.BOTTOM or Gravity.CENTER
         layoutParams.y = dock!!.measuredHeight + Utils.dpToPx(context, 4)
         val toast = LayoutInflater.from(context).inflate(R.layout.toast, null)
-        ColorUtils.applyMainColor(context, sharedPreferences, toast)
+        ColorUtils.applyMainColor(context, sharedPreferences, toast, GlassSurface.POPUP)
         val textTv = toast.findViewById<TextView>(R.id.toast_tv)
         val iconIv = toast.findViewById<ImageView>(R.id.toast_iv)
         textTv.text = text
@@ -995,7 +999,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             )
         ) Gravity.CENTER_HORIZONTAL else Gravity.START
         layoutParams.gravity = Gravity.BOTTOM or hAlign
-        ColorUtils.applyMainColor(context, sharedPreferences, appMenu!!)
+        ColorUtils.applyMainColor(context, sharedPreferences, appMenu!!, appMenuSurface())
         ColorUtils.applyColor(appsSeparator, getMainColors(sharedPreferences, this)[4])
 
         //Load apps
@@ -1078,10 +1082,9 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     @SuppressLint("ClickableViewAccessibility")
     private fun showDockAppContextMenu(app: DockApp, anchor: View) {
         val view = LayoutInflater.from(context).inflate(R.layout.task_list, null)
-        ColorUtils.applyMainColor(context, sharedPreferences, view)
         val layoutParams = Utils.makeWindowParams(-2, -2, context, preferSecondaryDisplay)
         view.setBackgroundResource(R.drawable.round_rect)
-        ColorUtils.applyMainColor(context, sharedPreferences, view)
+        ColorUtils.applyMainColor(context, sharedPreferences, view, GlassSurface.POPUP)
         layoutParams.gravity = Gravity.BOTTOM or Gravity.START
         layoutParams.flags =
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
@@ -1193,7 +1196,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     private fun showAppContextMenu(app: App, anchor: View) {
         val view = LayoutInflater.from(context).inflate(R.layout.task_list, null)
         val layoutParams = Utils.makeWindowParams(-2, -2, context, preferSecondaryDisplay)
-        ColorUtils.applyMainColor(context, sharedPreferences, view)
+        ColorUtils.applyMainColor(context, sharedPreferences, view, GlassSurface.POPUP)
         layoutParams.gravity = Gravity.START or Gravity.TOP
         layoutParams.flags =
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
@@ -1375,7 +1378,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             updateRunningTasks(true)
             updateAppMenu(true)
             loadFavoriteApps()
-        } else if (preference == "tint_indicators") {
+        } else if (preference == "tint_indicators" || preference == "glass_accent") {
             updateRunningTasks(true)
         } else if (preference == "lock_landscape")
             setOrientation()
@@ -1682,6 +1685,13 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         val brightnessSeekbar = quickSettingsPanel!!.findViewById<SeekBar>(R.id.brightness_seekbar)
         brightnessSeekbar.progress =
             DeviceUtils.getSystemSetting(this, Settings.System.SCREEN_BRIGHTNESS, "0").toInt()
+        if (ColorUtils.isGlassTheme(sharedPreferences)) {
+            val accent = ColorStateList.valueOf(ColorUtils.getAccentColor(sharedPreferences))
+            for (seekBar in listOf(brightnessSeekbar, volumeSeekbar)) {
+                seekBar.progressTintList = accent
+                seekBar.thumbTintList = accent
+            }
+        }
         val canWriteSettings = DeviceUtils.canWriteSettings(this)
         brightnessSeekbar.setOnSeekBarChangeListener(object : OnSeekBarChangeListener {
             override fun onProgressChanged(
@@ -1932,8 +1942,8 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     }
 
     fun applyTheme() {
-        updateDockBackgroundColor()
-        ColorUtils.applyMainColor(context, sharedPreferences, appMenu!!)
+        updateDockShape()
+        ColorUtils.applyMainColor(context, sharedPreferences, appMenu!!, appMenuSurface())
         ColorUtils.applySecondaryColor(context, sharedPreferences, searchEntry)
         ColorUtils.applySecondaryColor(context, sharedPreferences, backBtn)
         ColorUtils.applySecondaryColor(context, sharedPreferences, homeBtn)
@@ -2030,12 +2040,22 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     }
 
     private fun updateDockBackgroundColor() {
-        ColorUtils.applyMainColor(context, sharedPreferences, dockLayout)
+        val round = sharedPreferences.getBoolean("round_dock", false)
+        ColorUtils.applyMainColor(
+            context, sharedPreferences, dockLayout,
+            if (round) GlassSurface.BAR else GlassSurface.BAR_FLAT
+        )
         if (sharedPreferences.getBoolean("override_dock_background_alpha", false))
             applyDockAlpha()
     }
 
+    private fun appMenuSurface() =
+        if (sharedPreferences.getBoolean("app_menu_fullscreen", false)) GlassSurface.MENU_FULLSCREEN
+        else GlassSurface.MENU
+
     private fun applyDockAlpha() {
+        // With the glass theme opacity comes from the glass tint setting
+        if (ColorUtils.isGlassTheme(sharedPreferences)) return
         val alpha = sharedPreferences.getInt("dock_background_alpha", 255)
         dockLayout.background.alpha = alpha
     }
@@ -2054,9 +2074,18 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             unregisterReceiver(soundEventsReceiver)
         if (::displayListener.isInitialized && ::displayManager.isInitialized)
             displayManager.unregisterDisplayListener(displayListener)
-        connectivityManager.unregisterNetworkCallback(wifiNetworkCallback)
+        // The service can be stopped before onServiceConnected() registered these (e.g. toggled
+        // right after an update): don't crash the whole app on the way out
+        try {
+            connectivityManager.unregisterNetworkCallback(wifiNetworkCallback)
+        } catch (_: IllegalArgumentException) {
+        }
         removeAllViews()
-        unbindService(notificationServiceConnection)
+        GlassController.stop()
+        try {
+            unbindService(notificationServiceConnection)
+        } catch (_: IllegalArgumentException) {
+        }
         super.onDestroy()
     }
 
@@ -2074,6 +2103,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     private fun createViews() {
         context = DeviceUtils.getDisplayContext(this, preferSecondaryDisplay)
         windowManager = context.getSystemService(WINDOW_SERVICE) as WindowManager
+        GlassController.start(context)
         orientation = context.resources.configuration.orientation
         orientationValue =
             if (orientation == Configuration.ORIENTATION_PORTRAIT) "" else "_landscape"
@@ -2370,11 +2400,25 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         sharedPreferences.edit { putBoolean("first_hide", false) }
     }
 
+    /** Glass quick-settings toggle: accent background + on_accent icon when on, surface_hover when off. */
+    private fun applyGlassToggle(button: ImageView, icon: Drawable, enabled: Boolean) {
+        if (enabled) {
+            ColorUtils.applyColor(button, ColorUtils.getAccentColor(sharedPreferences))
+            button.background.alpha = 255
+            icon.setColorFilter(getColor(R.color.on_accent), PorterDuff.Mode.SRC_ATOP)
+        } else {
+            ColorUtils.applySecondaryColor(context, sharedPreferences, button)
+            icon.clearColorFilter()
+        }
+    }
+
     private fun updateWiFiStatus() {
         val wifiIcon = AppCompatResources.getDrawable(this, R.drawable.ic_wifi_on)!!
         val enabled = wifiManager.isWifiEnabled
         if (quickSettingsPanelVisible) {
-            if (enabled) {
+            if (ColorUtils.isGlassTheme(sharedPreferences)) {
+                applyGlassToggle(wifiButton!!, wifiIcon, enabled)
+            } else if (enabled) {
                 wifiIcon.setColorFilter(
                     getMainColors(sharedPreferences, context)[0],
                     PorterDuff.Mode.SRC_ATOP
@@ -2401,7 +2445,9 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         val bluetoothIcon = AppCompatResources.getDrawable(this, R.drawable.ic_bluetooth)!!
         val enabled = bluetoothManager.adapter?.isEnabled ?: false
         if (quickSettingsPanelVisible) {
-            if (enabled) {
+            if (ColorUtils.isGlassTheme(sharedPreferences)) {
+                applyGlassToggle(bluetoothButton!!, bluetoothIcon, enabled)
+            } else if (enabled) {
                 bluetoothIcon.setColorFilter(
                     getMainColors(sharedPreferences, context)[0],
                     PorterDuff.Mode.SRC_ATOP

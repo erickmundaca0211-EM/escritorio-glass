@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="glass_theme">Vidrio</string>
+    <string name="glass_category">Vidrio</string>
+    <string name="glass_quality_title">Calidad del vidrio</string>
+    <string name="glass_quality_summary">Sin desenfoque disponible o con ahorro de batería, los paneles pasan solos a un tinte más opaco</string>
+    <string name="glass_quality_off">Desactivado (tinte opaco)</string>
+    <string name="glass_quality_standard">Estándar (desenfoque)</string>
+    <string name="glass_quality_max">Máxima</string>
+    <string name="glass_tint_title">Opacidad del tinte (%)</string>
+    <string name="glass_blur_title">Desenfoque (dp)</string>
+    <string name="glass_accent_title">Color de acento</string>
+    <string name="accent_sky">Celeste</string>
+    <string name="accent_mint">Menta</string>
+    <string name="accent_amber">Ámbar</string>
+    <string name="accent_lilac">Lila</string>
+</resources>

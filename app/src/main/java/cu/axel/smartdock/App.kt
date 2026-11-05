@@ -4,8 +4,11 @@ import android.app.AlarmManager
 import android.app.Application
 import android.app.PendingIntent
 import android.content.Intent
+import androidx.core.content.edit
+import androidx.preference.PreferenceManager
 import com.google.android.material.color.DynamicColors
 import cu.axel.smartdock.activities.DebugActivity
+import cu.axel.smartdock.utils.ColorUtils
 import kotlin.system.exitProcess
 import android.os.Process
 
@@ -36,5 +39,23 @@ class App : Application() {
             uncaughtExceptionHandler.uncaughtException(thread, exception)
         }
         super.onCreate()
+        migrateToGlassTheme()
+    }
+
+    /**
+     * Escritorio Glass ships the glass theme as default, but installs that already saved
+     * Smart Dock's theme ("dark") would never see it. Switch them once; later choices are respected.
+     */
+    private fun migrateToGlassTheme() {
+        val sp = PreferenceManager.getDefaultSharedPreferences(this)
+        if (sp.getBoolean(GLASS_MIGRATION_KEY, false)) return
+        sp.edit {
+            putString("theme", ColorUtils.DEFAULT_THEME)
+            putBoolean(GLASS_MIGRATION_KEY, true)
+        }
+    }
+
+    private companion object {
+        const val GLASS_MIGRATION_KEY = "glass_theme_migrated"
     }
 }

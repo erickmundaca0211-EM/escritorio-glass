@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Escritorio Glass strings (kept apart from upstream strings.xml to ease merges). -->
+<resources>
+    <string name="glass_theme">Glass</string>
+    <string name="glass_category">Glass</string>
+    <string name="glass_quality_title">Glass quality</string>
+    <string name="glass_quality_summary">Without blur support or with battery saver on, panels switch to a denser tint automatically</string>
+    <string name="glass_quality_off">Off (opaque tint)</string>
+    <string name="glass_quality_standard">Standard (blur)</string>
+    <string name="glass_quality_max">Maximum</string>
+    <string name="glass_tint_title">Tint opacity (%)</string>
+    <string name="glass_blur_title">Blur (dp)</string>
+    <string name="glass_accent_title">Accent color</string>
+    <string name="accent_sky">Sky</string>
+    <string name="accent_mint">Mint</string>
+    <string name="accent_amber">Amber</string>
+    <string name="accent_lilac">Lilac</string>
+</resources>

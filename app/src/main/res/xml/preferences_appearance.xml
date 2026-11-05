@@ -1,15 +1,17 @@
-<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
     <PreferenceCategory android:title="@string/general">
         <Preference
             android:key="dock_layout"
             android:title="@string/dock_layout" />
 
         <ListPreference
-            android:defaultValue="dark"
+            android:defaultValue="glass"
             android:entries="@array/themes"
             android:entryValues="@array/theme_values"
             android:key="theme"
-            android:title="@string/theme_title" />
+            android:title="@string/theme_title"
+            app:useSimpleSummaryProvider="true" />
 
         <Preference
             android:key="theme_main_color"
@@ -27,6 +29,47 @@
             android:defaultValue="true"
             android:key="single_line_labels"
             android:title="@string/single_line_labels" />
+    </PreferenceCategory>
+
+    <!-- Escritorio Glass: glass look (docs/DISENO.md). Read by GlassSettings. -->
+    <PreferenceCategory android:title="@string/glass_category">
+        <ListPreference
+            android:defaultValue="standard"
+            android:entries="@array/glass_quality_entries"
+            android:entryValues="@array/glass_quality_values"
+            android:key="glass_quality"
+            android:title="@string/glass_quality_title"
+            app:useSimpleSummaryProvider="true" />
+
+        <SeekBarPreference
+            android:defaultValue="62"
+            android:key="glass_tint_opacity"
+            android:max="85"
+            android:title="@string/glass_tint_title"
+            app:min="35"
+            app:showSeekBarValue="true"
+            app:updatesContinuously="true" />
+
+        <SeekBarPreference
+            android:defaultValue="24"
+            android:key="glass_blur_radius"
+            android:max="40"
+            android:title="@string/glass_blur_title"
+            app:min="0"
+            app:showSeekBarValue="true" />
+
+        <ListPreference
+            android:defaultValue="#6CC4FF"
+            android:entries="@array/glass_accent_entries"
+            android:entryValues="@array/glass_accent_values"
+            android:key="glass_accent"
+            android:title="@string/glass_accent_title"
+            app:useSimpleSummaryProvider="true" />
+
+        <Preference
+            android:enabled="false"
+            android:selectable="false"
+            android:summary="@string/glass_quality_summary" />
     </PreferenceCategory>
 
     <PreferenceCategory android:title="@string/dock">

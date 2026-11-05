@@ -24,6 +24,7 @@ class DockAppAdapter(
     private val iconPadding: Int
     private val iconTheming: Boolean
     private val tintIndicators: Boolean
+    private val accentIndicator: Int?
 
     interface OnDockAppClickListener {
         fun onDockAppClicked(app: DockApp, view: View)
@@ -36,6 +37,8 @@ class DockAppAdapter(
         iconPadding =
             Utils.dpToPx(context, sharedPreferences.getString("icon_padding", "5")!!.toInt())
         tintIndicators = sharedPreferences.getBoolean("tint_indicators", false)
+        accentIndicator = if (ColorUtils.isGlassTheme(sharedPreferences))
+            ColorUtils.getAccentColor(sharedPreferences) else null
         when (sharedPreferences.getString("icon_shape", "circle")) {
             "circle" -> iconBackground = R.drawable.circle
             "round_rect" -> iconBackground = R.drawable.round_square
@@ -58,6 +61,8 @@ class DockAppAdapter(
                     viewHolder.runningIndicator,
                     ColorUtils.manipulateColor(ColorUtils.getDrawableDominantColor(app.icon), 2f)
                 )
+            else if (accentIndicator != null)
+                ColorUtils.applyColor(viewHolder.runningIndicator, accentIndicator)
 
             viewHolder.runningIndicator.alpha = if (app.tasks[0].id != -1) 1f else 0f
             viewHolder.runningIndicator.layoutParams.width =

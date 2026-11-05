@@ -14,6 +14,10 @@ import android.view.View
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.color.DynamicColors
 import cu.axel.smartdock.R
+import cu.axel.smartdock.glass.GlassController
+import cu.axel.smartdock.glass.GlassDrawable
+import cu.axel.smartdock.glass.GlassSettings
+import cu.axel.smartdock.glass.GlassSurface
 import kotlin.math.roundToInt
 import androidx.core.graphics.toColorInt
 import androidx.core.graphics.get
@@ -100,12 +104,29 @@ object ColorUtils {
         view.background.setColorFilter(color, PorterDuff.Mode.SRC_ATOP)
     }
 
+    const val DEFAULT_THEME = "glass"
+
+    fun isGlassTheme(sharedPreferences: SharedPreferences) =
+        sharedPreferences.getString("theme", DEFAULT_THEME) == "glass"
+
+    fun getAccentColor(sharedPreferences: SharedPreferences) =
+        GlassSettings.read(sharedPreferences).accent
+
     fun getMainColors(sharedPreferences: SharedPreferences, context: Context): IntArray {
-        val theme = sharedPreferences.getString("theme", "dark")
+        val theme = sharedPreferences.getString("theme", DEFAULT_THEME)
         var mainColor = 0
         var secondaryColor = 0
         var alpha = 255
         val colors = IntArray(5)
+        if (theme == "glass") {
+            // Panels themselves are drawn by GlassController; these values serve the rest of the code
+            colors[0] = GlassDrawable.TINT
+            colors[1] = (GlassSettings.read(sharedPreferences).tintOpacity * 255).roundToInt()
+            colors[2] = Color.WHITE
+            colors[3] = 31 // surface_hover: white 12 %
+            colors[4] = context.getColor(R.color.glass_separator)
+            return colors
+        }
         when (theme) {
             "dark" -> {
                 mainColor = "#212121".toColorInt()
@@ -149,7 +170,21 @@ object ColorUtils {
         return colors
     }
 
-    fun applyMainColor(context: Context, sp: SharedPreferences, view: View) {
+    fun applyMainColor(
+        context: Context,
+        sp: SharedPreferences,
+        view: View,
+        surface: GlassSurface = GlassSurface.PANEL
+    ) {
+        if (isGlassTheme(sp)) {
+            GlassController.apply(view, surface)
+            return
+        }
+        // Coming back from the glass theme: restore the plain shape before tinting it
+        GlassController.release(
+            view,
+            if (surface.radiusDp == 0) R.drawable.rect else R.drawable.round_rect
+        )
         val colors = getMainColors(sp, context)
         applyColor(view, colors[0])
         view.background.alpha = colors[1]

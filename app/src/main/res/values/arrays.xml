@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string-array name="themes">
+        <item>@string/glass_theme</item>
         <item>@string/dark</item>
         <item>@string/black</item>
         <item>@string/transparent</item>
@@ -9,6 +10,7 @@
     </string-array>
 
     <string-array name="theme_values">
+        <item>glass</item>
         <item>dark</item>
         <item>black</item>
         <item>transparent</item>
