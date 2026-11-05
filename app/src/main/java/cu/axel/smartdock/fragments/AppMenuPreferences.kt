@@ -11,6 +11,7 @@ import androidx.preference.PreferenceFragmentCompat
 import cu.axel.smartdock.R
 import cu.axel.smartdock.preferences.FileChooserPreference
 import cu.axel.smartdock.utils.AppUtils
+import cu.axel.smartdock.utils.ColorUtils
 
 private const val MENU_REQUEST_CODE = 4
 private const val USER_REQUEST_CODE = 5
@@ -58,6 +59,11 @@ class AppMenuPreferences : PreferenceFragmentCompat() {
             centerPreference.isEnabled = !checked
             true
         }
+        // Escritorio Glass: the Start menu has its own size and layout (docs/DISENO.md, "Menú Inicio")
+        if (ColorUtils.isGlassTheme(sharedPreferences))
+            listOf(heightPreference, widthPreference, centerPreference, fullscreenPreference)
+                .plus(findPreference<Preference>("num_columns"))
+                .forEach { it?.isVisible = false }
 
         val menuHeight: EditTextPreference = findPreference("app_menu_height")!!
         menuHeight.setOnBindEditTextListener { editText ->
