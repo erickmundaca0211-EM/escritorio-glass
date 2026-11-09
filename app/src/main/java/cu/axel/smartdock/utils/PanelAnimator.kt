@@ -29,7 +29,12 @@ object PanelAnimator {
     fun show(view: View, glass: List<View> = listOf(view)) =
         animate(view, glass, 0f, 1f, SHOW_MS, showCurve, null)
 
-    /** Runs [onEnd] once the panel is invisible; it is skipped if [show] starts again before that. */
+    /**
+     * Runs [onEnd] once the panel is invisible; it is skipped if [show] starts again before that.
+     * [onEnd] should take the window away with `removeViewImmediate`: plain `removeView` drops the
+     * window's renderer first and lets one more frame be drawn in software, which ignores the fade
+     * and the slide of the window's root view, so the whole panel flashed back for a moment.
+     */
     fun hide(view: View, glass: List<View> = listOf(view), onEnd: () -> Unit) =
         animate(view, glass, view.alpha, 0f, HIDE_MS, hideCurve, onEnd)
 

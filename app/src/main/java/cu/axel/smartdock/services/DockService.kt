@@ -1219,7 +1219,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         val menu = appMenu ?: return
         if (!menu.isAttachedToWindow) return
         PanelAnimator.hide(menu) {
-            if (!appMenuVisible && menu.isAttachedToWindow) windowManager.removeView(menu)
+            if (!appMenuVisible && menu.isAttachedToWindow) windowManager.removeViewImmediate(menu)
         }
     }
 
@@ -1964,7 +1964,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         turnTrayArrow(open = false)
         trayOverflowBtn.isActivated = false
         if (view.isAttachedToWindow) PanelAnimator.hide(view) {
-            if (view.isAttachedToWindow) windowManager.removeView(view)
+            if (view.isAttachedToWindow) windowManager.removeViewImmediate(view)
         }
     }
 
@@ -2106,7 +2106,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         quickSettings?.release()
         quickSettingsPanel?.let { panel ->
             if (panel.isAttachedToWindow) PanelAnimator.hide(panel) {
-                if (panel.isAttachedToWindow) windowManager.removeView(panel)
+                if (panel.isAttachedToWindow) windowManager.removeViewImmediate(panel)
             }
         }
         quickSettingsPanelVisible = false
@@ -2222,7 +2222,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         shizukuWindow = null
         val view = window.view
         if (view.isAttachedToWindow) PanelAnimator.hide(view) {
-            if (view.isAttachedToWindow) windowManager.removeView(view)
+            if (view.isAttachedToWindow) windowManager.removeViewImmediate(view)
         }
     }
 
@@ -2278,7 +2278,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         center?.closeReply()
         if (window != null && center != null && window.isAttachedToWindow)
             PanelAnimator.hide(window, listOf(center.notificationsCard)) {
-                if (window.isAttachedToWindow) windowManager.removeView(window)
+                if (window.isAttachedToWindow) windowManager.removeViewImmediate(window)
             }
         notificationCenterWindow = null
         notificationCenter = null
@@ -2379,7 +2379,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         val panel = calendarPanel
         if (window != null && panel != null && window.isAttachedToWindow)
             PanelAnimator.hide(window, listOf(panel.card)) {
-                if (window.isAttachedToWindow) windowManager.removeView(window)
+                if (window.isAttachedToWindow) windowManager.removeViewImmediate(window)
             }
         calendarPanelWindow = null
         calendarPanel = null
