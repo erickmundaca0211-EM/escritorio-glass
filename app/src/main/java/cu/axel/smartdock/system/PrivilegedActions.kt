@@ -3,6 +3,7 @@ package cu.axel.smartdock.system
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.provider.Settings
 import android.util.DisplayMetrics
 import android.util.Log
 import android.view.Display
@@ -23,8 +24,17 @@ object PrivilegedActions {
         SET_DISPLAY_DENSITY,
 
         /** Remove our forced density so the display goes back to its own (needs WRITE_SECURE_SETTINGS). */
-        CLEAR_DISPLAY_DENSITY
+        CLEAR_DISPLAY_DENSITY,
+
+        /**
+         * Turn Android's Night Light on or off ("Protección visual", docs/SPIKES.md d). The user toggles
+         * it back from the same button (needs WRITE_SECURE_SETTINGS).
+         */
+        SET_NIGHT_DISPLAY
     }
+
+    /** Settings.Secure key of Android's Night Light (hidden constant NIGHT_DISPLAY_ACTIVATED). */
+    private const val NIGHT_DISPLAY_ACTIVATED = "night_display_activated"
 
     /** Lowest density we ever force, as a fraction of the physical one: below this text is unreadable. */
     const val MIN_DENSITY_FRACTION = 0.5f
@@ -33,9 +43,25 @@ object PrivilegedActions {
     private const val MAX_DENSITY_FRACTION = 2f
 
     fun isAllowed(context: Context, action: Action): Boolean = when (action) {
-        Action.SET_DISPLAY_DENSITY, Action.CLEAR_DISPLAY_DENSITY ->
+        Action.SET_DISPLAY_DENSITY, Action.CLEAR_DISPLAY_DENSITY, Action.SET_NIGHT_DISPLAY ->
             context.checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS) ==
                     PackageManager.PERMISSION_GRANTED
+    }
+
+    fun isNightDisplayOn(context: Context): Boolean = try {
+        Settings.Secure.getInt(context.contentResolver, NIGHT_DISPLAY_ACTIVATED, 0) == 1
+    } catch (e: SecurityException) {
+        false
+    }
+
+    fun setNightDisplay(context: Context, on: Boolean): Boolean {
+        if (!isAllowed(context, Action.SET_NIGHT_DISPLAY)) return false
+        return try {
+            Settings.Secure.putInt(context.contentResolver, NIGHT_DISPLAY_ACTIVATED, if (on) 1 else 0)
+        } catch (e: Exception) {
+            Log.w(TAG, "privileged: night display failed", e)
+            false
+        }
     }
 
     /** Physical (factory) density of the default display. */
