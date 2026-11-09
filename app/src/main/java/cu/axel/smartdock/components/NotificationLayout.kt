@@ -3,7 +3,6 @@ package cu.axel.smartdock.components
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.app.Notification
-import android.app.PendingIntent.CanceledException
 import android.content.Context
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
@@ -27,6 +26,7 @@ import cu.axel.smartdock.R
 import cu.axel.smartdock.utils.AppUtils
 import cu.axel.smartdock.utils.ColorUtils
 import cu.axel.smartdock.utils.DeviceUtils
+import cu.axel.smartdock.utils.NotificationIntents
 import cu.axel.smartdock.utils.Utils
 
 class NotificationLayout(
@@ -119,10 +119,7 @@ class NotificationLayout(
                             drawable.setColorFilter(Color.WHITE, PorterDuff.Mode.SRC_ATOP)
                             actionIv.setImageDrawable(drawable)
                             actionIv.setOnClickListener {
-                                try {
-                                    action.actionIntent.send()
-                                } catch (_: CanceledException) {
-                                }
+                                NotificationIntents.sendFromTap(context, action.actionIntent)
                             }
                             notificationTextTv.isSingleLine = true
                             notificationActionsLayout.addView(actionIv, actionLayoutParams)
@@ -136,11 +133,9 @@ class NotificationLayout(
                         actionTv.text = action.title
                         actionTv.setTextColor(context.getColor(R.color.action))
                         actionTv.setOnClickListener {
-                            try {
-                                action.actionIntent.send()
+                            if (NotificationIntents.sendFromTap(context, action.actionIntent)) {
                                 notificationLayout.visibility = View.GONE
                                 notificationLayout.alpha = 0f
-                            } catch (_: CanceledException) {
                             }
                         }
                         notificationActionsLayout.addView(actionTv, actionLayoutParams)
@@ -156,14 +151,11 @@ class NotificationLayout(
                 notificationLayout.visibility = View.GONE
                 notificationLayout.alpha = 0f
                 val intent = notification.contentIntent
-                if (intent != null) {
-                    try {
-                        intent.send()
-                        if (sbn.isClearable)
-                            listener.onNotificationCancel(sbn.key)
-                    } catch (_: CanceledException) {
-                    }
-                }
+                // Like the system shade: only notifications marked "auto cancel" go away when opened
+                if (intent != null && NotificationIntents.sendFromTap(context, intent) &&
+                    sbn.isClearable && notification.flags and Notification.FLAG_AUTO_CANCEL != 0
+                )
+                    listener.onNotificationCancel(sbn.key)
             }
             notificationLayout.setOnLongClickListener {
                 val savedApps = sharedPreferences.getStringSet(

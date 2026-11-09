@@ -8,7 +8,6 @@ import android.annotation.SuppressLint
 import android.app.ActivityManager
 import android.app.KeyguardManager
 import android.app.Notification
-import android.app.PendingIntent.CanceledException
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.content.ActivityNotFoundException
@@ -143,6 +142,7 @@ import android.graphics.drawable.Drawable
 import cu.axel.smartdock.utils.DeepShortcutManager
 import cu.axel.smartdock.utils.DeviceUtils
 import cu.axel.smartdock.utils.IconPackUtils
+import cu.axel.smartdock.utils.NotificationIntents
 import cu.axel.smartdock.utils.OnSwipeListener
 import cu.axel.smartdock.utils.Utils
 import cu.axel.smartdock.widgets.HoverInterceptorLayout
@@ -2849,14 +2849,12 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
 
     override fun onNotificationClicked(sbn: StatusBarNotification, item: View) {
         val notification = sbn.notification
-        if (notification.contentIntent != null) {
-            try {
-                notification.contentIntent.send()
-                if (sbn.isClearable)
-                    notificationBridge?.mCancelNotification(sbn.key)
-            } catch (_: CanceledException) {
-            }
-        }
+        val intent = notification.contentIntent ?: return
+        // Like the system shade: only notifications marked "auto cancel" go away when opened
+        if (NotificationIntents.sendFromTap(context, intent) && sbn.isClearable &&
+            notification.flags and Notification.FLAG_AUTO_CANCEL != 0
+        )
+            notificationBridge?.mCancelNotification(sbn.key)
     }
 
     override fun onNotificationLongClicked(notification: StatusBarNotification, item: View) {
