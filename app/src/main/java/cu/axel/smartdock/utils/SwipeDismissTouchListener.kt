@@ -28,6 +28,7 @@ class SwipeDismissTouchListener(
     private var downX = 0f
     private var downY = 0f
     private var swiping = false
+    private var armed = false
     private var tracker: VelocityTracker? = null
 
     override fun onTouch(view: View, event: MotionEvent): Boolean {
@@ -59,6 +60,12 @@ class SwipeDismissTouchListener(
                     val shift = if (canDismiss) dx else dx * RESISTANCE
                     view.translationX = shift
                     view.alpha = (1f - abs(shift) / view.width.coerceAtLeast(1)).coerceIn(MIN_ALPHA, 1f)
+                    // A short tick when letting go would close it, and when it no longer would
+                    val past = canDismiss && abs(dx) > view.width * DISMISS_FRACTION
+                    if (past != armed) {
+                        armed = past
+                        Haptics.threshold(view, past)
+                    }
                     return true
                 }
             }
@@ -100,6 +107,7 @@ class SwipeDismissTouchListener(
 
     private fun release() {
         swiping = false
+        armed = false
         tracker?.recycle()
         tracker = null
     }

@@ -32,6 +32,7 @@ import cu.axel.smartdock.R
 import cu.axel.smartdock.system.DesktopScale
 import cu.axel.smartdock.system.PrivilegedActions
 import cu.axel.smartdock.utils.ColorUtils
+import cu.axel.smartdock.utils.Haptics
 import cu.axel.smartdock.utils.Utils
 import kotlin.math.roundToInt
 
@@ -66,6 +67,9 @@ class QuickSettingsPanel(
         FLASHLIGHT(R.drawable.ic_eg_flashlight, R.string.qs_flashlight),
         CAST(R.drawable.ic_eg_cast, R.string.qs_cast)
     }
+
+    /** Buttons that switch something right here; the others open a system screen. */
+    private val switches = setOf(Tile.EYE_COMFORT, Tile.LANDSCAPE, Tile.DND, Tile.FLASHLIGHT)
 
     val view: LinearLayout =
         LayoutInflater.from(context).inflate(R.layout.qs_panel, null) as LinearLayout
@@ -143,7 +147,11 @@ class QuickSettingsPanel(
             tileView.findViewById<TextView>(R.id.tile_label).setText(tile.label)
             val button = tileView.findViewById<View>(R.id.tile_button)
             button.contentDescription = context.getString(tile.label)
-            button.setOnClickListener { onTileClicked(tile) }
+            button.setOnClickListener {
+                val wasOn = isOn(tile)
+                onTileClicked(tile)
+                if (tile in switches) Haptics.toggle(it, !wasOn) else Haptics.tap(it)
+            }
             button.setOnLongClickListener {
                 settingsFor(tile)?.let { intent -> host.openFromQuickSettings(intent) }
                 true
