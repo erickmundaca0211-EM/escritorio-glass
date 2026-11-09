@@ -291,10 +291,13 @@
                     android:visibility="gone" />
             </LinearLayout>
 
+            <!-- minHeight = one icon (app_task_entry): when the last app closes the list has no icons
+                 left to take its height from, and at 0 dp it would clip the closing icon away -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/apps_lv"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:minHeight="42dp"
                 android:fadingEdgeLength="16dp"
                 android:overScrollMode="never"
                 android:requiresFadingEdge="horizontal" />
