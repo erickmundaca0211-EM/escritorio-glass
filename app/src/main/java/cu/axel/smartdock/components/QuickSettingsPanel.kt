@@ -2,8 +2,10 @@ package cu.axel.smartdock.components
 
 import android.app.NotificationManager
 import android.bluetooth.BluetoothManager
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.content.res.ColorStateList
 import android.graphics.drawable.GradientDrawable
@@ -14,6 +16,7 @@ import android.media.AudioManager
 import android.net.Uri
 import android.net.wifi.WifiManager
 import android.os.BatteryManager
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
@@ -28,13 +31,18 @@ import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
+import androidx.core.view.isVisible
 import cu.axel.smartdock.R
 import cu.axel.smartdock.system.DesktopScale
 import cu.axel.smartdock.system.PrivilegedActions
+import cu.axel.smartdock.utils.CallAudio
 import cu.axel.smartdock.utils.ColorUtils
 import cu.axel.smartdock.utils.Haptics
 import cu.axel.smartdock.utils.Utils
 import kotlin.math.roundToInt
+
+/** Sent by the system on every volume change (public action, constant hidden in the SDK). */
+private const val VOLUME_CHANGED = "android.media.VOLUME_CHANGED_ACTION"
 
 /**
  * Escritorio Glass quick settings (docs/DISENO.md, "Ajustes rápidos"; docs/mockup/QuickSettings.png).
@@ -97,9 +105,19 @@ class QuickSettingsPanel(
     private val brightnessValue: TextView = view.findViewById(R.id.qs_brightness_value)
     private val volumeSeek: SeekBar = view.findViewById(R.id.qs_volume_seek)
     private val volumeValue: TextView = view.findViewById(R.id.qs_volume_value)
+    private val callRow: View = view.findViewById(R.id.qs_call_row)
+    private val callSeek: SeekBar = view.findViewById(R.id.qs_call_seek)
+    private val callValue: TextView = view.findViewById(R.id.qs_call_value)
     private val scaleSeek: SeekBar = view.findViewById(R.id.qs_scale_seek)
     private val scaleValue: TextView = view.findViewById(R.id.qs_scale_value)
     private var askedForBrightness = false
+
+    // A call starting or ending shows or hides the call volume; volume keys move the sliders
+    private val modeListener = AudioManager.OnModeChangedListener { refreshVolumes() }
+
+    private val volumeReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) = refreshVolumes()
+    }
 
     init {
         buildTiles()
@@ -112,6 +130,11 @@ class QuickSettingsPanel(
             cameraManager.registerTorchCallback(torchCallback, handler)
         } catch (_: Exception) {
         }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+            audioManager.addOnModeChangedListener(context.mainExecutor, modeListener)
+        ContextCompat.registerReceiver(
+            context, volumeReceiver, IntentFilter(VOLUME_CHANGED), ContextCompat.RECEIVER_NOT_EXPORTED
+        )
         refresh()
     }
 
@@ -124,6 +147,12 @@ class QuickSettingsPanel(
 
     fun release() {
         handler.removeCallbacksAndMessages(null)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+            audioManager.removeOnModeChangedListener(modeListener)
+        try {
+            context.unregisterReceiver(volumeReceiver)
+        } catch (_: IllegalArgumentException) {
+        }
         try {
             cameraManager.unregisterTorchCallback(torchCallback)
         } catch (_: Exception) {
@@ -266,7 +295,7 @@ class QuickSettingsPanel(
     private fun setUpSliders() {
         val accentList = ColorStateList.valueOf(accent)
         val track = ColorStateList.valueOf(0x33FFFFFF)
-        for (seekBar in listOf(brightnessSeek, volumeSeek, scaleSeek)) {
+        for (seekBar in listOf(brightnessSeek, volumeSeek, callSeek, scaleSeek)) {
             seekBar.progressTintList = accentList
             seekBar.thumbTintList = accentList
             seekBar.progressBackgroundTintList = track
@@ -283,6 +312,14 @@ class QuickSettingsPanel(
         volumeSeek.setOnSeekBarChangeListener(listener { value, fromUser ->
             volumeValue.text = percent(value, volumeSeek.max)
             if (fromUser) audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, value, 0)
+        })
+
+        // Call volume never goes to zero (the system keeps a minimum so the call stays audible)
+        callSeek.min = audioManager.getStreamMinVolume(CallAudio.STREAM)
+        callSeek.max = audioManager.getStreamMaxVolume(CallAudio.STREAM)
+        callSeek.setOnSeekBarChangeListener(listener { value, fromUser ->
+            callValue.text = percent(value, callSeek.max)
+            if (fromUser) audioManager.setStreamVolume(CallAudio.STREAM, value, 0)
         })
 
         // Desktop scale = the "app scale" (DesktopScale): applied when the slider is released
@@ -310,10 +347,22 @@ class QuickSettingsPanel(
             (Settings.System.getInt(resolver, Settings.System.SCREEN_BRIGHTNESS, 128) - 1)
                 .coerceIn(0, 254)
         brightnessValue.text = percent(brightnessSeek.progress, 254)
-        volumeSeek.progress = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-        volumeValue.text = percent(volumeSeek.progress, volumeSeek.max)
+        refreshVolumes()
         scaleSeek.progress = DesktopScale.percent(sharedPreferences)
         scaleValue.text = context.getString(R.string.qs_percent, scaleSeek.progress)
+    }
+
+    /** Media volume, and call volume only while a call is on; a slider being dragged is left alone. */
+    private fun refreshVolumes() {
+        if (!volumeSeek.isPressed) {
+            volumeSeek.progress = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+            volumeValue.text = percent(volumeSeek.progress, volumeSeek.max)
+        }
+        callRow.isVisible = CallAudio.active(audioManager)
+        if (callRow.isVisible && !callSeek.isPressed) {
+            callSeek.progress = audioManager.getStreamVolume(CallAudio.STREAM)
+            callValue.text = percent(callSeek.progress, callSeek.max)
+        }
     }
 
     private fun setBrightness(value: Int) {

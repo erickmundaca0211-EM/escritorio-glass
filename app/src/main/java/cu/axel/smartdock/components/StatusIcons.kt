@@ -29,6 +29,7 @@ import cu.axel.smartdock.glass.BatteryDrawable
 import cu.axel.smartdock.glass.CellDrawable
 import cu.axel.smartdock.glass.VolumeDrawable
 import cu.axel.smartdock.glass.WifiDrawable
+import cu.axel.smartdock.utils.CallAudio
 
 /**
  * Keeps the taskbar status icons live: Wi-Fi or mobile signal (whichever carries the connection),
@@ -88,6 +89,9 @@ class StatusIcons(
             Settings.System.getUriFor(HYPEROS_POWER_SAVE), false, saverObserver
         )
         listenToCellSignal(true)
+        // During a call the speaker shows the call volume (the volume keys change that one)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+            audio.addOnModeChangedListener(context.mainExecutor, modeListener)
         refreshNetwork()
         refreshVolume()
         refreshBattery(null)
@@ -106,6 +110,8 @@ class StatusIcons(
         }
         context.contentResolver.unregisterContentObserver(saverObserver)
         listenToCellSignal(false)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+            audio.removeOnModeChangedListener(modeListener)
         handler.removeCallbacksAndMessages(null)
     }
 
@@ -207,13 +213,18 @@ class StatusIcons(
 
     // ---- volume and battery
 
+    private val modeListener by lazy { AudioManager.OnModeChangedListener { refreshVolume() } }
+
     private fun refreshVolume() {
-        val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
-        val now = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
-        val muted = now == 0 || audio.isStreamMute(AudioManager.STREAM_MUSIC)
+        val stream = if (CallAudio.active(audio)) CallAudio.STREAM else AudioManager.STREAM_MUSIC
+        val min = audio.getStreamMinVolume(stream)
+        val range = (audio.getStreamMaxVolume(stream) - min).coerceAtLeast(1)
+        val now = audio.getStreamVolume(stream)
+        val muted = now == 0 || audio.isStreamMute(stream)
+        val step = now - min
         val waves = when {
-            now * 3 <= max -> 1
-            now * 3 <= max * 2 -> 2
+            step * 3 <= range -> 1
+            step * 3 <= range * 2 -> 2
             else -> 3
         }
         volume.set(waves, muted)
