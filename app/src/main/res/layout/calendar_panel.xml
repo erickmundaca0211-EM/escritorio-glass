@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Calendar flyout of the taskbar clock (docs/DISENO.md, "Notificaciones y calendario"): one glass
+    card, 340 dp wide, with today's date, month arrows and a month that starts on Sunday.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:id="@+id/cal_card"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/round_rect"
+        android:orientation="vertical"
+        android:paddingStart="16dp"
+        android:paddingTop="14dp"
+        android:paddingEnd="14dp"
+        android:paddingBottom="14dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="26dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/cal_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@drawable/taskbar_button_bg"
+                android:singleLine="true"
+                android:textColor="@color/glass_text_primary"
+                android:textFontWeight="600"
+                android:textSize="14sp" />
+
+            <ImageView
+                android:id="@+id/cal_prev"
+                android:layout_width="32dp"
+                android:layout_height="26dp"
+                android:background="@drawable/taskbar_button_bg"
+                android:contentDescription="@string/cal_prev"
+                android:padding="5dp"
+                android:src="@drawable/ic_eg_chevron_up" />
+
+            <ImageView
+                android:id="@+id/cal_next"
+                android:layout_width="32dp"
+                android:layout_height="26dp"
+                android:layout_marginStart="2dp"
+                android:background="@drawable/taskbar_button_bg"
+                android:contentDescription="@string/cal_next"
+                android:padding="5dp"
+                android:src="@drawable/ic_eg_chevron_down" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/cal_weekdays"
+            android:layout_width="match_parent"
+            android:layout_height="20dp"
+            android:layout_marginTop="10dp"
+            android:orientation="horizontal" />
+
+        <GridLayout
+            android:id="@+id/cal_days"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:columnCount="7" />
+    </LinearLayout>
+</LinearLayout>

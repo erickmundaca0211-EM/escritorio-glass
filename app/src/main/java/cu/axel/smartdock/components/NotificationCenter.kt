@@ -11,8 +11,6 @@ import android.graphics.Typeface
 import android.os.Bundle
 import android.service.notification.StatusBarNotification
 import android.text.TextUtils
-import android.text.format.DateFormat
-import android.view.Gravity
 import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
@@ -20,7 +18,6 @@ import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
-import android.widget.GridLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -34,18 +31,14 @@ import cu.axel.smartdock.utils.ColorUtils
 import cu.axel.smartdock.utils.StartMenuUtils
 import cu.axel.smartdock.utils.SwipeDismissTouchListener
 import cu.axel.smartdock.utils.Utils
-import java.time.DayOfWeek
-import java.time.format.TextStyle
-import java.util.Calendar
-import java.util.Locale
 
 /**
- * Escritorio Glass notifications and calendar column (docs/DISENO.md, "Notificaciones y calendario").
+ * Notifications flyout of the taskbar bell (docs/DISENO.md, "Notificaciones y calendario").
  *
  * Notifications are grouped by app and only shown or dismissed: nothing is stored or sent anywhere
  * (CLAUDE.md). Their own action buttons work like in the system shade; a reply typed in "Responder"
  * goes only to the app that asked for it and is kept in memory just while it is being written.
- * The calendar is a plain month view starting on Sunday; it reads no events.
+ * The calendar lives in its own flyout ([CalendarPanel]), opened from the clock.
  */
 class NotificationCenter(
     private val context: Context,
@@ -56,7 +49,6 @@ class NotificationCenter(
         fun openNotification(sbn: StatusBarNotification, view: View)
         fun dismissNotification(sbn: StatusBarNotification)
         fun clearAllNotifications()
-        fun openCalendar()
 
         /** Runs one of the notification's buttons, with the typed reply in [fillIn] if any. */
         fun sendAction(sbn: StatusBarNotification, action: Notification.Action, fillIn: Intent?)
@@ -70,15 +62,12 @@ class NotificationCenter(
     val view: LinearLayout =
         LayoutInflater.from(context).inflate(R.layout.notification_center, null) as LinearLayout
     val notificationsCard: View = view.findViewById(R.id.nc_notifications_card)
-    val calendarCard: View = view.findViewById(R.id.nc_calendar_card)
 
     private val list: RecyclerView = view.findViewById(R.id.nc_list)
     private val empty: TextView = view.findViewById(R.id.nc_empty)
     private val clearAll: TextView = view.findViewById(R.id.nc_clear_all)
     private val adapter = GroupAdapter()
     private val accent = ColorUtils.getAccentColor(sharedPreferences)
-    private val shownMonth: Calendar = Calendar.getInstance().apply { set(Calendar.DAY_OF_MONTH, 1) }
-    private val dayCells = ArrayList<TextView>()
     private val inputMethodManager = context.getSystemService(InputMethodManager::class.java)
 
     // Reply being written (memory only, never stored); list updates wait until it is sent or closed
@@ -93,7 +82,6 @@ class NotificationCenter(
         list.layoutManager = LinearLayoutManager(context)
         list.adapter = adapter
         clearAll.setOnClickListener { host.clearAllNotifications() }
-        setUpCalendar()
     }
 
     /** Shows the current notifications, newest app first (group summaries are skipped). */
@@ -290,89 +278,6 @@ class NotificationCenter(
         pendingUpdate?.let {
             pendingUpdate = null
             update(it)
-        }
-    }
-
-    // ---- calendar
-
-    private fun setUpCalendar() {
-        val locale = Locale.getDefault()
-        val weekdays = view.findViewById<LinearLayout>(R.id.cal_weekdays)
-        // Week starts on Sunday (docs/DISENO.md); narrow names give "D L M X J V S" in Spanish
-        val order = listOf(
-            DayOfWeek.SUNDAY, DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY,
-            DayOfWeek.THURSDAY, DayOfWeek.FRIDAY, DayOfWeek.SATURDAY
-        )
-        for (day in order) {
-            weekdays.addView(TextView(context).apply {
-                // Spanish calendars write miércoles as "X" so it differs from martes ("M")
-                text = if (locale.language == "es" && day == DayOfWeek.WEDNESDAY) "X"
-                else day.getDisplayName(TextStyle.NARROW, locale).uppercase(locale)
-                gravity = Gravity.CENTER
-                textSize = 11.5f
-                setTextColor(ContextCompat.getColor(context, R.color.glass_text_secondary))
-                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f)
-            })
-        }
-        val grid = view.findViewById<GridLayout>(R.id.cal_days)
-        val cellSize = Utils.dpToPx(context, 24)
-        repeat(42) {
-            val cell = TextView(context).apply {
-                gravity = Gravity.CENTER
-                textSize = 12f
-                setTextColor(ContextCompat.getColor(context, R.color.glass_text_primary))
-            }
-            val params = GridLayout.LayoutParams(
-                GridLayout.spec(GridLayout.UNDEFINED),
-                GridLayout.spec(GridLayout.UNDEFINED, 1f)
-            )
-            params.width = cellSize
-            params.height = cellSize
-            params.setGravity(Gravity.CENTER)
-            params.topMargin = Utils.dpToPx(context, 1)
-            grid.addView(cell, params)
-            dayCells.add(cell)
-        }
-        view.findViewById<View>(R.id.cal_prev).setOnClickListener { moveMonth(-1) }
-        view.findViewById<View>(R.id.cal_next).setOnClickListener { moveMonth(1) }
-        view.findViewById<View>(R.id.cal_title).setOnClickListener { host.openCalendar() }
-        renderMonth()
-    }
-
-    private fun moveMonth(delta: Int) {
-        shownMonth.add(Calendar.MONTH, delta)
-        renderMonth()
-    }
-
-    private fun renderMonth() {
-        val locale = Locale.getDefault()
-        val today = Calendar.getInstance()
-        val sameMonth = today.get(Calendar.YEAR) == shownMonth.get(Calendar.YEAR) &&
-                today.get(Calendar.MONTH) == shownMonth.get(Calendar.MONTH)
-        val pattern = DateFormat.getBestDateTimePattern(locale, if (sameMonth) "EEEEdMMMM" else "MMMMyyyy")
-        view.findViewById<TextView>(R.id.cal_title).text =
-            DateFormat.format(pattern, if (sameMonth) today else shownMonth)
-
-        val offset = shownMonth.get(Calendar.DAY_OF_WEEK) - Calendar.SUNDAY
-        val days = shownMonth.getActualMaximum(Calendar.DAY_OF_MONTH)
-        val rows = (offset + days + 6) / 7
-        val onAccent = ContextCompat.getColor(context, R.color.on_accent)
-        val primary = ContextCompat.getColor(context, R.color.glass_text_primary)
-        dayCells.forEachIndexed { index, cell ->
-            val day = index - offset + 1
-            cell.isVisible = index < rows * 7
-            cell.text = if (day in 1..days) day.toString() else ""
-            val isToday = sameMonth && day == today.get(Calendar.DAY_OF_MONTH)
-            if (isToday) {
-                cell.background = ContextCompat.getDrawable(context, R.drawable.calendar_today_bg)
-                    ?.mutate()?.apply { setTint(accent) }
-                cell.setTextColor(onAccent)
-                cell.setTypeface(null, Typeface.BOLD)
-            } else {
-                cell.background = null
-                cell.setTextColor(primary)
-                cell.setTypeface(null, Typeface.NORMAL)
-            }
         }
     }
 

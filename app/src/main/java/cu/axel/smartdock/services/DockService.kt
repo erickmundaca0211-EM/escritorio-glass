@@ -100,6 +100,7 @@ import cu.axel.smartdock.adapters.AppListAdapter
 import cu.axel.smartdock.adapters.PinnedAppsAdapter
 import cu.axel.smartdock.adapters.RecentAppsAdapter
 import cu.axel.smartdock.utils.StartMenuUtils
+import cu.axel.smartdock.components.CalendarPanel
 import cu.axel.smartdock.components.NotificationCenter
 import cu.axel.smartdock.components.QuickSettingsPanel
 import cu.axel.smartdock.adapters.AppAdapter
@@ -194,6 +195,9 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     private var notificationCenter: NotificationCenter? = null
     private var notificationCenterWindow: View? = null
     private var notificationCenterVisible = false
+    private var calendarPanel: CalendarPanel? = null
+    private var calendarPanelWindow: View? = null
+    private var calendarPanelVisible = false
     private var wifiManagerWrapper: WifiManagerWrapper? = null
     private var bluetoothManagerWrapper: BluetoothManagerWrapper? = null
     private var activityManagerWrapper: ActivityManagerWrapper? = null
@@ -961,7 +965,9 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
 
     private fun autoHideTaskbar() {
         if (!isPinned || !autoHideEnabled() || !isFullscreenAppInFront()) return
-        if (appMenuVisible || quickSettingsPanelVisible || powerMenuVisible || notificationCenterVisible) {
+        if (appMenuVisible || quickSettingsPanelVisible || powerMenuVisible || notificationCenterVisible ||
+            calendarPanelVisible
+        ) {
             // Try again once the open panel is closed
             autoHideHandler.postDelayed(autoHideRunnable, TASKBAR_AUTOHIDE_DELAY_MS)
             return
@@ -1121,10 +1127,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         //Hack to ensure the launched app is already on the top of the stack
         dockHandler.postDelayed({ updateRunningTasks() }, 1200)
 
-        if (quickSettingsPanelVisible)
-            hideQuickSettingsPanel()
-        if (notificationCenterVisible)
-            hideNotificationCenter()
+        hideFlyouts()
     }
 
     private fun setOrientation() {
@@ -1144,6 +1147,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     }
 
     fun showAppMenu() {
+        hideFlyouts()
         val displayId =
             if (preferSecondaryDisplay) DeviceUtils.getSecondaryDisplay(context).displayId else Display.DEFAULT_DISPLAY
         val bounds = DeviceUtils.getDisplayBounds(context, displayId)
@@ -1868,8 +1872,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         // A new screen scale (density) changes every dp size: rebuild the bar and its windows
         if (densityDpi != 0 && newConfig.densityDpi != densityDpi) {
             densityDpi = newConfig.densityDpi
-            if (quickSettingsPanelVisible) hideQuickSettingsPanel()
-            if (notificationCenterVisible) hideNotificationCenter()
+            hideFlyouts()
             if (powerMenuVisible) hidePowerMenu()
             restartUI()
             return
@@ -2089,12 +2092,13 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         quickSettingsPanelVisible = false
         quickSettingsPanel = null
         quickSettings = null
+        statusArea.isActivated = false
     }
 
     /** "Ajustes rápidos": glass panel above the taskbar, on the right (docs/mockup/QuickSettings.png). */
     @SuppressLint("ClickableViewAccessibility")
     private fun showQuickSettingsPanel() {
-        if (notificationCenterVisible) hideNotificationCenter()
+        hideFlyouts()
         if (appMenuVisible) hideAppMenu()
         val panel = QuickSettingsPanel(
             ContextThemeWrapper(context, R.style.AppTheme_Dock), sharedPreferences, quickSettingsHost
@@ -2123,6 +2127,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         quickSettingsPanel = panel.view
         quickSettings = panel
         quickSettingsPanelVisible = true
+        statusArea.isActivated = true
     }
 
     private val quickSettingsHost = object : QuickSettingsPanel.Host {
@@ -2151,18 +2156,19 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         val center = notificationCenter
         center?.closeReply()
         if (window != null && center != null && window.isAttachedToWindow)
-            PanelAnimator.hide(window, listOf(center.notificationsCard, center.calendarCard)) {
+            PanelAnimator.hide(window, listOf(center.notificationsCard)) {
                 if (window.isAttachedToWindow) windowManager.removeView(window)
             }
         notificationCenterWindow = null
         notificationCenter = null
         notificationCenterVisible = false
+        notificationsArea.isActivated = false
     }
 
-    /** "Notificaciones y calendario": two glass cards on the right edge (docs/mockup/QuickSettings.png). */
+    /** Notifications flyout of the bell: one glass card on the right edge, as tall as the screen allows. */
     @SuppressLint("ClickableViewAccessibility")
     private fun showNotificationCenter() {
-        if (quickSettingsPanelVisible) hideQuickSettingsPanel()
+        hideFlyouts()
         if (appMenuVisible) hideAppMenu()
         val center = NotificationCenter(
             ContextThemeWrapper(context, R.style.AppTheme_Dock), sharedPreferences,
@@ -2185,7 +2191,6 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         layoutParams.x = side
         layoutParams.y = dockHeight + gap
         ColorUtils.applyMainColor(context, sharedPreferences, center.notificationsCard, GlassSurface.PANEL)
-        ColorUtils.applyMainColor(context, sharedPreferences, center.calendarCard, GlassSurface.PANEL)
         center.view.setOnTouchListener { view, event ->
             if (event.action == MotionEvent.ACTION_OUTSIDE && notificationCenterVisible &&
                 event.y < view.measuredHeight
@@ -2193,10 +2198,11 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             false
         }
         windowManager.addView(center.view, layoutParams)
-        PanelAnimator.show(center.view, listOf(center.notificationsCard, center.calendarCard))
+        PanelAnimator.show(center.view, listOf(center.notificationsCard))
         notificationCenterWindow = center.view
         notificationCenter = center
         notificationCenterVisible = true
+        notificationsArea.isActivated = true
         updateNotificationCenter()
     }
 
@@ -2212,11 +2218,6 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
 
         override fun clearAllNotifications() {
             notificationBridge?.cancelAll()
-        }
-
-        override fun openCalendar() {
-            hideNotificationCenter()
-            openCalendarApp()
         }
 
         override fun sendAction(
@@ -2237,6 +2238,72 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
                 params.flags and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
             else params.flags or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
             windowManager.updateViewLayout(window, params)
+        }
+    }
+
+    /** Closes the flyouts on the right (quick settings, notifications, calendar) that are open. */
+    private fun hideFlyouts() {
+        if (quickSettingsPanelVisible) hideQuickSettingsPanel()
+        if (notificationCenterVisible) hideNotificationCenter()
+        if (calendarPanelVisible) hideCalendarPanel()
+    }
+
+    private fun toggleCalendarPanel() {
+        if (calendarPanelVisible) hideCalendarPanel() else showCalendarPanel()
+    }
+
+    private fun hideCalendarPanel() {
+        val window = calendarPanelWindow
+        val panel = calendarPanel
+        if (window != null && panel != null && window.isAttachedToWindow)
+            PanelAnimator.hide(window, listOf(panel.card)) {
+                if (window.isAttachedToWindow) windowManager.removeView(window)
+            }
+        calendarPanelWindow = null
+        calendarPanel = null
+        calendarPanelVisible = false
+        clockArea.isActivated = false
+    }
+
+    /** Calendar flyout of the clock: one glass card above the taskbar, on the right. */
+    @SuppressLint("ClickableViewAccessibility")
+    private fun showCalendarPanel() {
+        hideFlyouts()
+        if (appMenuVisible) hideAppMenu()
+        val panel = CalendarPanel(
+            ContextThemeWrapper(context, R.style.AppTheme_Dock), sharedPreferences, calendarPanelHost
+        )
+        val bounds = DeviceUtils.getDisplayBounds(context, Display.DEFAULT_DISPLAY)
+        val side = Utils.dpToPx(context, PANEL_SIDE_MARGIN_DP)
+        val layoutParams = Utils.makeWindowParams(
+            Utils.dpToPx(context, NOTIFICATION_CENTER_WIDTH_DP).coerceAtMost(bounds.width() - side * 2),
+            WindowManager.LayoutParams.WRAP_CONTENT, context, preferSecondaryDisplay
+        )
+        layoutParams.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
+        layoutParams.gravity = Gravity.BOTTOM or Gravity.END
+        layoutParams.x = side
+        layoutParams.y = dockHeight + Utils.dpToPx(context, START_MENU_GAP_DP)
+        ColorUtils.applyMainColor(context, sharedPreferences, panel.card, GlassSurface.PANEL)
+        // A touch outside closes it, except on the taskbar below (its buttons act on their own)
+        panel.view.setOnTouchListener { view, event ->
+            if (event.action == MotionEvent.ACTION_OUTSIDE && calendarPanelVisible &&
+                event.y < view.measuredHeight
+            ) hideCalendarPanel()
+            false
+        }
+        windowManager.addView(panel.view, layoutParams)
+        PanelAnimator.show(panel.view, listOf(panel.card))
+        calendarPanelWindow = panel.view
+        calendarPanel = panel
+        calendarPanelVisible = true
+        clockArea.isActivated = true
+    }
+
+    private val calendarPanelHost = object : CalendarPanel.Host {
+        override fun openCalendar() {
+            hideCalendarPanel()
+            openCalendarApp()
         }
     }
 
@@ -2649,9 +2716,9 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         pinBtn.setOnClickListener { togglePin() }
         statusArea.setOnClickListener { toggleQuickSettingsPanel() }
         // The time and date are one button (no listeners on the TextClocks, or a tap on the digits
-        // would open the clock app instead). The calendar arrives with phase 4; until then the
-        // clock opens the notifications panel. Long press: date and time settings.
-        clockArea.setOnClickListener { notificationBtn.performClick() }
+        // would open the clock app instead): it opens the calendar, like Windows. The bell opens the
+        // notifications. Long press on the clock: date and time settings.
+        clockArea.setOnClickListener { toggleCalendarPanel() }
         clockArea.setOnLongClickListener {
             launchApp(null, null, Intent(Settings.ACTION_DATE_SETTINGS))
             true
