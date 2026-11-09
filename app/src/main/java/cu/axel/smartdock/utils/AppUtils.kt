@@ -23,7 +23,6 @@ import cu.axel.smartdock.models.AppTask
 import cu.axel.smartdock.models.DockApp
 import cu.axel.smartdock.models.WINDOWING_MODE_FREEFORM
 import cu.axel.smartdock.models.WINDOWING_MODE_FULLSCREEN
-import cu.axel.smartdock.wrappers.ActivityManagerWrapper
 import java.io.File
 import kotlin.math.max
 
@@ -170,14 +169,11 @@ object AppUtils {
         return resolveInfo!!.activityInfo.packageName
     }
 
+    /** [tasksInfo] comes from the system (system app) or from PrivilegedActions (Shizuku). */
     fun getRunningTasks(
-        activityManager: ActivityManager,
-        iActivityManager: ActivityManagerWrapper? = null,
-        packageManager: PackageManager,
-        max: Int
+        tasksInfo: List<ActivityManager.RunningTaskInfo>,
+        packageManager: PackageManager
     ): ArrayList<AppTask> {
-        val tasksInfo =
-            iActivityManager?.getRunningTasks(max) ?: activityManager.getRunningTasks(max)
         if (!tasksInfo.isNullOrEmpty())
             currentApp = tasksInfo.first().baseActivity!!.packageName
         val getWindowingModeMethod =
@@ -216,14 +212,21 @@ object AppUtils {
         return appTasks
     }
 
-    fun getRecentTasks(context: Context, max: Int): ArrayList<AppTask> {
+    /**
+     * Apps used since [since] (by default since the phone started), newest first. Without Shizuku the
+     * system does not say which apps are open: this is the closest guess.
+     */
+    fun getRecentTasks(
+        context: Context, max: Int,
+        since: Long = System.currentTimeMillis() - SystemClock.elapsedRealtime()
+    ): ArrayList<AppTask> {
         val ignoredApps =
             listOf<String>(context.packageName, getCurrentLauncher(context.packageManager))
         val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
-        val start = System.currentTimeMillis() - SystemClock.elapsedRealtime()
         val usageStats = usm.queryUsageStats(
-            UsageStatsManager.INTERVAL_BEST, start, System.currentTimeMillis()
-        ).sortedWith(compareByDescending { it.lastTimeUsed })
+            UsageStatsManager.INTERVAL_BEST, since, System.currentTimeMillis()
+        ).filter { it.lastTimeUsed >= since }
+            .sortedWith(compareByDescending { it.lastTimeUsed })
             .filterNot { ignoredApps.contains(it.packageName) }
         val appTasks = ArrayList<AppTask>()
         if (usageStats.isNotEmpty())

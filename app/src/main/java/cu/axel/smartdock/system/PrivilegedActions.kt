@@ -1,12 +1,14 @@
 package cu.axel.smartdock.system
 
 import android.Manifest
+import android.app.ActivityManager
 import android.content.Context
 import android.content.pm.PackageManager
 import android.provider.Settings
 import android.util.DisplayMetrics
 import android.util.Log
 import android.view.Display
+import cu.axel.smartdock.wrappers.ActivityManagerWrapper
 
 /**
  * The single entry point for privileged actions in Escritorio Glass (CLAUDE.md, "Reglas de seguridad").
@@ -30,8 +32,20 @@ object PrivilegedActions {
          * Turn Android's Night Light on or off ("Protección visual", docs/SPIKES.md d). The user toggles
          * it back from the same button (needs WRITE_SECURE_SETTINGS).
          */
-        SET_NIGHT_DISPLAY
+        SET_NIGHT_DISPLAY,
+
+        /** Read the open windows (tasks) for the taskbar; nothing in them is read but app and id (Shizuku). */
+        LIST_TASKS,
+
+        /**
+         * Close one window, like swiping it away in recents ("Cerrar ventana"). Only from the user's tap
+         * on the taskbar menu, and only a task id the system itself listed (Shizuku).
+         */
+        CLOSE_TASK
     }
+
+    /** Most windows the taskbar asks for at once. */
+    private const val MAX_TASKS = 100
 
     /** Settings.Secure key of Android's Night Light (hidden constant NIGHT_DISPLAY_ACTIVATED). */
     private const val NIGHT_DISPLAY_ACTIVATED = "night_display_activated"
@@ -46,6 +60,49 @@ object PrivilegedActions {
         Action.SET_DISPLAY_DENSITY, Action.CLEAR_DISPLAY_DENSITY, Action.SET_NIGHT_DISPLAY ->
             context.checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS) ==
                     PackageManager.PERMISSION_GRANTED
+
+        Action.LIST_TASKS, Action.CLOSE_TASK -> ShizukuState.isUsable()
+    }
+
+    // ---- Shizuku: the activity manager through Shizuku's binder, only for the actions above
+
+    private var activityManager: ActivityManagerWrapper? = null
+
+    @Synchronized
+    private fun shizukuActivityManager(): ActivityManagerWrapper? {
+        activityManager?.let { if (it.isAlive()) return it }
+        return try {
+            ActivityManagerWrapper().also { activityManager = it }
+        } catch (e: Exception) {
+            Log.w(TAG, "privileged: Shizuku activity manager unavailable", e)
+            null
+        }
+    }
+
+    /** Shizuku stopped: drop its binder (a new one is made when it starts again). */
+    @Synchronized
+    fun forgetShizuku() {
+        activityManager = null
+    }
+
+    fun runningTasks(context: Context, max: Int): List<ActivityManager.RunningTaskInfo> {
+        if (!isAllowed(context, Action.LIST_TASKS) || max !in 1..MAX_TASKS) return emptyList()
+        return try {
+            shizukuActivityManager()?.getRunningTasks(max) ?: emptyList()
+        } catch (e: Exception) {
+            Log.w(TAG, "privileged: listing tasks failed", e)
+            emptyList()
+        }
+    }
+
+    fun closeTask(context: Context, taskId: Int): Boolean {
+        if (!isAllowed(context, Action.CLOSE_TASK) || taskId <= 0) return false
+        return try {
+            shizukuActivityManager()?.removeTask(taskId) ?: false
+        } catch (e: Exception) {
+            Log.w(TAG, "privileged: closing task $taskId failed", e)
+            false
+        }
     }
 
     fun isNightDisplayOn(context: Context): Boolean = try {

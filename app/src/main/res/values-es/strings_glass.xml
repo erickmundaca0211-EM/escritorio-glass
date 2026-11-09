@@ -103,4 +103,8 @@
     <string name="qs_shizuku_off">Shizuku está apagada</string>
     <string name="shizuku_reminder_title">Recordar iniciar Shizuku</string>
     <string name="shizuku_reminder_summary">Al entrar al modo escritorio, muestra una ventana si Shizuku falta o está apagada</string>
+    <string name="taskbar_pin">Anclar a la barra de tareas</string>
+    <string name="taskbar_unpin">Desanclar de la barra de tareas</string>
+    <string name="taskbar_close_window">Cerrar ventana</string>
+    <string name="taskbar_close_windows">Cerrar todas las ventanas</string>
 </resources>

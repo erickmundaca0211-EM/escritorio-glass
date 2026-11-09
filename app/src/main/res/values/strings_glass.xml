@@ -104,4 +104,8 @@
     <string name="qs_shizuku_off">Shizuku is off</string>
     <string name="shizuku_reminder_title">Remind me to start Shizuku</string>
     <string name="shizuku_reminder_summary">When entering desktop mode, show a window if Shizuku is missing or off</string>
+    <string name="taskbar_pin">Pin to taskbar</string>
+    <string name="taskbar_unpin">Unpin from taskbar</string>
+    <string name="taskbar_close_window">Close window</string>
+    <string name="taskbar_close_windows">Close all windows</string>
 </resources>

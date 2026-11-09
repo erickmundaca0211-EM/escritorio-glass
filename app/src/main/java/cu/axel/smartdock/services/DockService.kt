@@ -136,6 +136,7 @@ import cu.axel.smartdock.glass.GlassController
 import cu.axel.smartdock.glass.GlassSurface
 import cu.axel.smartdock.utils.CalendarUtils
 import cu.axel.smartdock.system.DesktopScale
+import cu.axel.smartdock.system.PrivilegedActions
 import cu.axel.smartdock.system.ShizukuState
 import android.provider.CalendarContract
 import android.text.format.DateFormat
@@ -154,9 +155,6 @@ import cu.axel.smartdock.utils.OnSwipeListener
 import cu.axel.smartdock.utils.PanelAnimator
 import cu.axel.smartdock.utils.Utils
 import cu.axel.smartdock.widgets.HoverInterceptorLayout
-import cu.axel.smartdock.wrappers.ActivityManagerWrapper
-import cu.axel.smartdock.wrappers.BluetoothManagerWrapper
-import cu.axel.smartdock.wrappers.WifiManagerWrapper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -192,6 +190,9 @@ private const val NOTIFICATION_CENTER_WIDTH_DP = 340
 /** Turn of the "^" arrow when the hidden icons open or close. */
 private const val TRAY_ARROW_MS = 220L
 
+/** After closing a window, when to read the open windows again. */
+private const val CLOSE_REFRESH_MS = 350L
+
 private const val SHIZUKU_WINDOW_WIDTH_DP = 400
 
 /** The Shizuku window waits for the bar to settle after desktop mode starts. */
@@ -224,9 +225,6 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
 
     // Own handler: the bar clears dockHandler's queue every time it shows or hides
     private val shizukuHandler = Handler(Looper.getMainLooper())
-    private var wifiManagerWrapper: WifiManagerWrapper? = null
-    private var bluetoothManagerWrapper: BluetoothManagerWrapper? = null
-    private var activityManagerWrapper: ActivityManagerWrapper? = null
     private var orientationValue: String = ""
     private var orientation = -1
     private var densityDpi = 0
@@ -352,29 +350,11 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         if (sharedPreferences.getString("icon_pack", "")!!.isNotEmpty()) {
             iconPackUtils = IconPackUtils(this)
         }
-        //Shizuku stuff
-        initWrappers()
-        Shizuku.addBinderReceivedListener(shizukuReceived)
+        //Shizuku stuff (its privileged calls go only through PrivilegedActions)
+        // Sticky: Shizuku's binder can arrive before this runs (it comes with the app's provider)
+        Shizuku.addBinderReceivedListenerSticky(shizukuReceived)
         Shizuku.addBinderDeadListener(shizukuDead)
         Shizuku.addRequestPermissionResultListener(shizukuPermission)
-    }
-
-    private fun destroyWrappers() {
-        activityManagerWrapper = null
-        wifiManagerWrapper = null
-        bluetoothManagerWrapper = null
-    }
-
-    private fun initWrappers() {
-        if (DeviceUtils.hasShizukuPermission()) {
-            try {
-                activityManagerWrapper = ActivityManagerWrapper()
-                wifiManagerWrapper = WifiManagerWrapper()
-                bluetoothManagerWrapper = BluetoothManagerWrapper()
-            } catch (e: Exception) {
-                Log.e(packageName, e.toString())
-            }
-        }
     }
 
     override fun onServiceConnected() {
@@ -582,20 +562,19 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
 
     private fun getDockAppActions(app: DockApp): ArrayList<Action> {
         val actions = ArrayList<Action>()
-        if (AppUtils.isPinned(this, app, AppUtils.DOCK_PINNED_LIST)) {
-            actions.add(Action(R.drawable.ic_unpin, getString(R.string.unpin)))
-            actions.add(Action(R.drawable.ic_arrow_right, getString(R.string.move)))
-        } else
-            actions.add(Action(R.drawable.ic_pin, getString(R.string.pin)))
-        actions.add(startPinAction(app))
-
-        if (app.tasks.isNotEmpty() && app.tasks[0].id != -1 && DeviceUtils.hasShizukuPermission()) {
-            if (app.tasks[0].windowingMode == WINDOWING_MODE_FREEFORM) {
-                actions.add(Action(R.drawable.ic_launch_mode, getString(R.string.resize)))
-                actions.add(Action(R.drawable.ic_snap_top, getString(R.string.snap)))
-            }
-            actions.add(Action(R.drawable.ic_close, getString(R.string.close)))
-        }
+        if (AppUtils.isPinned(this, app, AppUtils.DOCK_PINNED_LIST))
+            actions.add(Action(R.drawable.ic_unpin, getString(R.string.taskbar_unpin)))
+        else
+            actions.add(Action(R.drawable.ic_pin, getString(R.string.taskbar_pin)))
+        // Closing needs Shizuku (Android does not let apps close other apps)
+        val open = app.tasks.count { it.id > 0 }
+        if (open > 0 && PrivilegedActions.isAllowed(context, PrivilegedActions.Action.CLOSE_TASK))
+            actions.add(
+                Action(
+                    R.drawable.ic_close,
+                    getString(if (open > 1) R.string.taskbar_close_windows else R.string.taskbar_close_window)
+                )
+            )
         return actions
     }
 
@@ -1391,6 +1370,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     }
 
     @SuppressLint("ClickableViewAccessibility")
+    /** Taskbar app menu, like Windows: pin or unpin it, and close its window(s) when it is open. */
     private fun showDockAppContextMenu(app: DockApp, anchor: View) {
         val view = LayoutInflater.from(context).inflate(R.layout.task_list, null)
         val layoutParams = Utils.makeWindowParams(-2, -2, context, preferSecondaryDisplay)
@@ -1406,104 +1386,30 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         view.setOnTouchListener { _, event ->
             if (event.action == MotionEvent.ACTION_OUTSIDE && view.isAttachedToWindow)
                 windowManager.removeView(view)
-
             false
         }
         val actionsLv = view.findViewById<ListView>(R.id.tasks_lv)
         actionsLv.adapter = AppActionsAdapter(context, getDockAppActions(app))
         actionsLv.setOnItemClickListener { adapterView, _, position, _ ->
-            if (adapterView.getItemAtPosition(position) is Action) {
-                val action = adapterView.getItemAtPosition(position) as Action
-                if (action.text == getString(R.string.pin) || action.text == getString(R.string.unpin)) {
+            val action = adapterView.getItemAtPosition(position) as? Action
+            when (action?.text) {
+                getString(R.string.taskbar_pin), getString(R.string.taskbar_unpin) -> {
                     if (AppUtils.isPinned(context, app, AppUtils.DOCK_PINNED_LIST))
-                        AppUtils.unpinApp(
-                            context,
-                            app.packageName,
-                            AppUtils.DOCK_PINNED_LIST
-                        ) else
+                        AppUtils.unpinApp(context, app.packageName, AppUtils.DOCK_PINNED_LIST)
+                    else
                         AppUtils.pinApp(context, app, AppUtils.DOCK_PINNED_LIST)
                     loadPinnedApps()
-                    if (isPinned)
-                        updateRunningTasks()
-                    windowManager.removeView(view)
-                } else if (action.text == getString(R.string.start_pin) ||
-                    action.text == getString(R.string.start_unpin)
-                ) {
-                    toggleStartPin(app)
-                    windowManager.removeView(view)
-                } else if (action.text == getString(R.string.left)) {
-                    AppUtils.moveApp(this, app, AppUtils.DOCK_PINNED_LIST, 0)
-                    loadPinnedApps()
-                    updateRunningTasks()
-                } else if (action.text == getString(R.string.right)) {
-                    AppUtils.moveApp(this, app, AppUtils.DOCK_PINNED_LIST, 1)
-                    loadPinnedApps()
-                    updateRunningTasks()
-                } else if (action.text == getString(R.string.move)) {
-                    val actions = ArrayList<Action>()
-                    actions.add(Action(R.drawable.ic_arrow_back, ""))
-                    actions.add(Action(R.drawable.ic_arrow_back, getString(R.string.left)))
-                    actions.add(Action(R.drawable.ic_arrow_right, getString(R.string.right)))
-                    actionsLv.adapter = AppActionsAdapter(context, actions)
-                } else if (action.text == getString(R.string.resize)) {
-                    val actions = ArrayList<Action>()
-                    actions.add(Action(R.drawable.ic_arrow_back, ""))
-                    actions.add(Action(R.drawable.ic_standard, getString(R.string.standard)))
-                    actions.add(Action(R.drawable.ic_maximized, getString(R.string.maximized)))
-                    actions.add(Action(R.drawable.ic_portrait, getString(R.string.portrait)))
-                    actions.add(Action(R.drawable.ic_fullscreen, getString(R.string.fullscreen)))
-                    actionsLv.adapter = AppActionsAdapter(context, actions)
-                } else if (action.text == getString(R.string.snap)) {
-                    val actions = ArrayList<Action>()
-                    actions.add(Action(R.drawable.ic_arrow_back, ""))
-                    actions.add(Action(R.drawable.ic_snap_top, getString(R.string.top)))
-                    actions.add(Action(R.drawable.ic_snap_bottom, getString(R.string.bottom)))
-                    actions.add(Action(R.drawable.ic_snap_left, getString(R.string.left)))
-                    actions.add(Action(R.drawable.ic_snap_right, getString(R.string.right)))
-                    actionsLv.adapter = AppActionsAdapter(context, actions)
-                } else if (action.text == getString(R.string.standard)) {
-                    activityManagerWrapper?.resizeTask(
-                        app.tasks[0].id,
-                        AppUtils.makeLaunchBounds(this, "standard", dockHeight)
-                    )
-                    windowManager.removeView(view)
-                } else if (action.text == getString(R.string.maximized)) {
-                    activityManagerWrapper?.resizeTask(
-                        app.tasks[0].id,
-                        AppUtils.makeLaunchBounds(this, "maximized", dockHeight)
-                    )
-                    windowManager.removeView(view)
-                } else if (action.text == getString(R.string.portrait)) {
-                    activityManagerWrapper?.resizeTask(
-                        app.tasks[0].id,
-                        AppUtils.makeLaunchBounds(this, "portrait", dockHeight)
-                    )
-                    windowManager.removeView(view)
-                } else if (action.text == getString(R.string.fullscreen)) {
-                    activityManagerWrapper?.resizeTask(
-                        app.tasks[0].id,
-                        AppUtils.makeLaunchBounds(this, "fullscreen", dockHeight)
-                    )
-                    windowManager.removeView(view)
-                } else if (action.text == getString(R.string.top)) {
-                    activityManagerWrapper?.resizeTask(
-                        app.tasks[0].id,
-                        AppUtils.makeLaunchBounds(this, "tiled-top", dockHeight)
-                    )
-                    windowManager.removeView(view)
-                } else if (action.text == getString(R.string.bottom)) {
-                    activityManagerWrapper?.resizeTask(
-                        app.tasks[0].id,
-                        AppUtils.makeLaunchBounds(this, "tiled-bottom", dockHeight)
-                    )
-                    windowManager.removeView(view)
-                } else if (action.text == getString(R.string.close)) {
-                    activityManagerWrapper?.removeTask(app.tasks[0].id)
-                    windowManager.removeView(view)
-                } else if (action.text.isBlank()) {
-                    actionsLv.adapter = AppActionsAdapter(context, getDockAppActions(app))
+                    updateRunningTasks(true)
+                }
+
+                getString(R.string.taskbar_close_window), getString(R.string.taskbar_close_windows) -> {
+                    app.tasks.filter { it.id > 0 }
+                        .forEach { PrivilegedActions.closeTask(context, it.id) }
+                    // The system needs a moment to drop the task from its list
+                    dockHandler.postDelayed({ updateRunningTasks(true) }, CLOSE_REFRESH_MS)
                 }
             }
+            if (view.isAttachedToWindow) windowManager.removeView(view)
         }
         windowManager.addView(view, layoutParams)
         PanelAnimator.show(view)
@@ -1853,16 +1759,11 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         //TODO: Don't do anything if tasks has not changed
         val nApps =
             if (orientation == Configuration.ORIENTATION_PORTRAIT) maxApps else maxAppsLandscape
-        if (systemApp || DeviceUtils.hasShizukuPermission()) {
-            if (systemApp)
-                tasks = AppUtils.getRunningTasks(activityManager, null, packageManager, nApps)
-            else if (DeviceUtils.hasShizukuPermission())
-                tasks = AppUtils.getRunningTasks(
-                    activityManager,
-                    activityManagerWrapper,
-                    packageManager,
-                    nApps
-                )
+        val shizuku = PrivilegedActions.isAllowed(context, PrivilegedActions.Action.LIST_TASKS)
+        if (systemApp || shizuku) {
+            val infos = if (systemApp) activityManager.getRunningTasks(nApps)
+            else PrivilegedActions.runningTasks(context, nApps)
+            tasks = AppUtils.getRunningTasks(infos, packageManager)
             for (j in 1..tasks.size) {
                 val task = tasks[tasks.size - j]
                 val index = AppUtils.containsTask(apps, task)
@@ -1872,7 +1773,9 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
                     apps.add(DockApp(task))
             }
         } else {
-            tasks = AppUtils.getRecentTasks(context, nApps)
+            // Without Shizuku the system does not say which apps are open: the closest guess is the
+            // apps used since desktop mode started (not since the phone started)
+            tasks = AppUtils.getRecentTasks(context, nApps, since = Utils.startupTime)
             tasks.reversed().forEach { task ->
                 val index = AppUtils.containsTask(apps, task)
                 if (index == -1)
@@ -2206,11 +2109,10 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     // ---- Shizuku setup (docs/PLAN.md): a separate app the user installs, starts and allows
 
     private val shizukuReceived = Shizuku.OnBinderReceivedListener {
-        initWrappers()
         shizukuHandler.post { onShizukuChanged() }
     }
     private val shizukuDead = Shizuku.OnBinderDeadListener {
-        destroyWrappers()
+        PrivilegedActions.forgetShizuku()
         shizukuHandler.post { onShizukuChanged() }
     }
     private val shizukuPermission = Shizuku.OnRequestPermissionResultListener { _, _ ->
@@ -2231,15 +2133,19 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     }
 
     private fun onShizukuChanged() {
+        // Shizuku can answer before onServiceConnected() built the bar: the bar reads it then
+        if (!::context.isInitialized || dock == null) return
         val status = ShizukuState.status(this)
         if (status == ShizukuState.Status.READY) {
-            initWrappers()
             if (shizukuSetupActive || shizukuWindow != null)
                 Toast.makeText(this, R.string.shizuku_ready, Toast.LENGTH_SHORT).show()
             shizukuSetupActive = false
             hideShizukuSetup()
             updateRunningTasks(true)
-        } else if (shizukuSetupActive) showShizukuSetup(status)
+        } else {
+            if (shizukuSetupActive) showShizukuSetup(status)
+            updateRunningTasks(true)
+        }
         quickSettings?.refresh()
     }
 

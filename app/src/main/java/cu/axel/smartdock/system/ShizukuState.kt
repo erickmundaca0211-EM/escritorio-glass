@@ -32,6 +32,9 @@ object ShizukuState {
 
     fun isReady(context: Context) = status(context) == Status.READY
 
+    /** Started and allowed: what the privileged actions need, without the slower install check. */
+    fun isUsable() = isRunning() && isGranted()
+
     private fun isInstalled(context: Context) = try {
         context.packageManager.getPackageInfo(PACKAGE, 0)
         true
