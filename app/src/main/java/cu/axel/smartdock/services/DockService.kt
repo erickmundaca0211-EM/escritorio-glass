@@ -64,6 +64,7 @@ import android.view.accessibility.AccessibilityWindowInfo
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.Animation
 import android.view.animation.AnimationUtils
+import android.view.animation.DecelerateInterpolator
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
@@ -183,6 +184,9 @@ private const val START_RECENT_MAX = 6
 // Quick settings and notification center (docs/DISENO.md)
 private const val QUICK_SETTINGS_WIDTH_DP = 372
 private const val NOTIFICATION_CENTER_WIDTH_DP = 340
+
+/** Turn of the "^" arrow when the hidden icons open or close. */
+private const val TRAY_ARROW_MS = 220L
 private const val PANEL_SIDE_MARGIN_DP = 10
 private const val TASKBAR_AUTOHIDE_DELAY_MS = 1000L // wait before hiding over a full-screen app (3 s felt slow)
 private const val TASKBAR_HOVER_HIDE_DELAY_MS = 1000 // after the mouse leaves the bar
@@ -200,6 +204,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     private var calendarPanelWindow: View? = null
     private var calendarPanelVisible = false
     private var statusIcons: StatusIcons? = null
+    private var trayOverflowWindow: View? = null
     private var wifiManagerWrapper: WifiManagerWrapper? = null
     private var bluetoothManagerWrapper: BluetoothManagerWrapper? = null
     private var activityManagerWrapper: ActivityManagerWrapper? = null
@@ -1975,7 +1980,25 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
 
     /** "^" menu: the tray items that don't fit on the bar (docs/DISENO.md). */
     @SuppressLint("ClickableViewAccessibility")
+    /** The "^" button opens and closes the hidden icons; its arrow turns to show which. */
+    private fun toggleTrayOverflow(anchor: View) {
+        if (trayOverflowWindow != null) hideTrayOverflow() else showTrayOverflow(anchor)
+    }
+
+    private fun hideTrayOverflow() {
+        val view = trayOverflowWindow ?: return
+        trayOverflowWindow = null
+        trayOverflowBtn.animate().rotation(0f).setDuration(TRAY_ARROW_MS)
+            .setInterpolator(DecelerateInterpolator()).start()
+        trayOverflowBtn.isActivated = false
+        if (view.isAttachedToWindow) PanelAnimator.hide(view) {
+            if (view.isAttachedToWindow) windowManager.removeView(view)
+        }
+    }
+
     private fun showTrayOverflow(anchor: View) {
+        hideFlyouts()
+        if (appMenuVisible) hideAppMenu()
         val view = LayoutInflater.from(context).inflate(R.layout.task_list, null)
         val layoutParams = Utils.makeWindowParams(-2, -2, context, preferSecondaryDisplay)
         view.setBackgroundResource(R.drawable.round_rect)
@@ -1984,12 +2007,21 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         layoutParams.flags =
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
         layoutParams.y = Utils.dpToPx(context, 4) + dockHeight
-        val location = IntArray(2)
-        anchor.getLocationOnScreen(location)
-        layoutParams.x = location[0]
+        // The arrow may be turned: measure it from its parent, which never rotates
+        fun arrowOnScreen(): IntArray {
+            val parent = IntArray(2)
+            (anchor.parent as View).getLocationOnScreen(parent)
+            return intArrayOf(parent[0] + anchor.left, parent[1] + anchor.top)
+        }
+        layoutParams.x = arrowOnScreen()[0]
+        // A touch outside closes it, except on the "^" itself: that click closes it on its own
         view.setOnTouchListener { _, event ->
-            if (event.action == MotionEvent.ACTION_OUTSIDE && view.isAttachedToWindow)
-                windowManager.removeView(view)
+            if (event.action == MotionEvent.ACTION_OUTSIDE && trayOverflowWindow === view) {
+                val arrow = arrowOnScreen()
+                val onArrow = event.rawX >= arrow[0] && event.rawX <= arrow[0] + anchor.width &&
+                        event.rawY >= arrow[1] && event.rawY <= arrow[1] + anchor.height
+                if (!onArrow) hideTrayOverflow()
+            }
             false
         }
         val bluetoothOn = bluetoothManager.adapter?.isEnabled ?: false
@@ -2015,10 +2047,14 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
                     Intent(this, MainActivity::class.java)
                 )
             }
-            if (view.isAttachedToWindow) windowManager.removeView(view)
+            hideTrayOverflow()
         }
         windowManager.addView(view, layoutParams)
         PanelAnimator.show(view)
+        trayOverflowWindow = view
+        trayOverflowBtn.isActivated = true
+        trayOverflowBtn.animate().rotation(180f).setDuration(TRAY_ARROW_MS)
+            .setInterpolator(DecelerateInterpolator()).start()
     }
 
     /** Left block: date, and the next calendar event when the optional permission is granted. */
@@ -2245,6 +2281,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
 
     /** Closes the flyouts on the right (quick settings, notifications, calendar) that are open. */
     private fun hideFlyouts() {
+        hideTrayOverflow()
         if (quickSettingsPanelVisible) hideQuickSettingsPanel()
         if (notificationCenterVisible) hideNotificationCenter()
         if (calendarPanelVisible) hideCalendarPanel()
@@ -2728,7 +2765,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         }
         notificationsArea.setOnClickListener { notificationBtn.performClick() }
         searchBtn.setOnClickListener { toggleAppMenu() }
-        trayOverflowBtn.setOnClickListener { showTrayOverflow(it) }
+        trayOverflowBtn.setOnClickListener { toggleTrayOverflow(it) }
         dateBlock.setOnClickListener { openCalendarApp() }
         updateDateBlock()
 
