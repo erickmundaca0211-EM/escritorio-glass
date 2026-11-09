@@ -1,5 +1,6 @@
 package cu.axel.smartdock.components
 
+import android.annotation.SuppressLint
 import android.app.Notification
 import android.content.Context
 import android.content.SharedPreferences
@@ -22,6 +23,7 @@ import androidx.recyclerview.widget.RecyclerView
 import cu.axel.smartdock.R
 import cu.axel.smartdock.utils.ColorUtils
 import cu.axel.smartdock.utils.StartMenuUtils
+import cu.axel.smartdock.utils.SwipeDismissTouchListener
 import cu.axel.smartdock.utils.Utils
 import java.time.DayOfWeek
 import java.time.format.TextStyle
@@ -100,6 +102,8 @@ class NotificationCenter(
 
         override fun getItemCount() = groups.size
 
+        // Taps still reach the row: the swipe listener only takes over sideways moves
+        @SuppressLint("ClickableViewAccessibility")
         override fun onBindViewHolder(holder: Holder, position: Int) {
             val group = groups[position]
             val pm = context.packageManager
@@ -129,6 +133,12 @@ class NotificationCenter(
                     isVisible = !text.isNullOrBlank()
                 }
                 row.setOnClickListener { host.openNotification(sbn, it) }
+                // Swiping sideways closes it, like the system shade (ongoing ones spring back)
+                row.setOnTouchListener(
+                    SwipeDismissTouchListener(canDismiss = sbn.isClearable, collapse = true) {
+                        host.dismissNotification(sbn)
+                    }
+                )
                 row.findViewById<View>(R.id.item_dismiss).apply {
                     isVisible = sbn.isClearable
                     setOnClickListener { host.dismissNotification(sbn) }

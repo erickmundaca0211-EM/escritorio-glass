@@ -2,6 +2,7 @@ package cu.axel.smartdock.components
 
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
+import android.annotation.SuppressLint
 import android.app.Notification
 import android.content.Context
 import android.content.SharedPreferences
@@ -27,6 +28,7 @@ import cu.axel.smartdock.utils.AppUtils
 import cu.axel.smartdock.utils.ColorUtils
 import cu.axel.smartdock.utils.DeviceUtils
 import cu.axel.smartdock.utils.NotificationIntents
+import cu.axel.smartdock.utils.SwipeDismissTouchListener
 import cu.axel.smartdock.utils.Utils
 
 class NotificationLayout(
@@ -54,6 +56,8 @@ class NotificationLayout(
         fun onNotificationCancel(key: String)
     }
 
+    // Taps still reach the popup: the swipe listener only takes over sideways moves
+    @SuppressLint("ClickableViewAccessibility")
     fun updateNotificationLayout(sbn: StatusBarNotification) {
         if (sharedPreferences.getBoolean("show_notifications", true)) {
             val notification = sbn.notification
@@ -157,6 +161,21 @@ class NotificationLayout(
                 )
                     listener.onNotificationCancel(sbn.key)
             }
+            // Swiping sideways closes the popup and the notification, like its X button
+            notificationLayout.setOnTouchListener(
+                SwipeDismissTouchListener(
+                    canDismiss = true,
+                    collapse = false,
+                    onSwipeStart = { handler.removeCallbacksAndMessages(null) },
+                    onSpringBack = { hideNotification() }
+                ) {
+                    notificationLayout.visibility = View.GONE
+                    notificationLayout.alpha = 0f
+                    notificationLayout.translationX = 0f
+                    if (sbn.isClearable)
+                        listener.onNotificationCancel(sbn.key)
+                }
+            )
             notificationLayout.setOnLongClickListener {
                 val savedApps = sharedPreferences.getStringSet(
                     "ignored_notifications_popups",
@@ -181,6 +200,7 @@ class NotificationLayout(
                     listener.onNotificationCancel(sbn.key)
                 true
             }
+            notificationLayout.translationX = 0f
             notificationLayout.animate().alpha(1f).setDuration(300)
                 .setInterpolator(AccelerateDecelerateInterpolator())
                 .setListener(object : AnimatorListenerAdapter() {
