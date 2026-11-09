@@ -2791,14 +2791,17 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     }
 
     private fun removeAllViews() {
-        try {
-            dock?.let { windowManager.removeViewImmediate(it) }
-            dockHandle?.let { windowManager.removeViewImmediate(it) }
-            appMenu?.let { windowManager.removeViewImmediate(it) }
-            topRightCorner?.let { windowManager.removeViewImmediate(it) }
-            bottomRightCorner?.let { windowManager.removeViewImmediate(it) }
-            notificationLayout?.let { windowManager.removeViewImmediate(it.notificationLayout) }
-        } catch (_: Exception) {
+        appMenu?.let { PanelAnimator.cancel(it) }
+        // One by one: a window that is not shown (the closed Start menu) must not stop the others
+        listOfNotNull(
+            dock, dockHandle, appMenu, topRightCorner, bottomRightCorner,
+            notificationLayout?.notificationLayout
+        ).forEach { view ->
+            try {
+                windowManager.removeViewImmediate(view)
+            } catch (_: IllegalArgumentException) {
+                // Not added right now
+            }
         }
 
         dock = null
