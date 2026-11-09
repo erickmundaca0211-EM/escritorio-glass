@@ -1,5 +1,9 @@
 package cu.axel.smartdock.adapters
 
+import androidx.recyclerview.widget.DiffUtil
+import android.view.animation.OvershootInterpolator
+import android.view.animation.DecelerateInterpolator
+import android.animation.ValueAnimator
 import android.content.Context
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -33,7 +37,22 @@ class DockAppAdapter(
 
     private companion object {
         const val OPEN_INDICATOR = 0xB3FFFFFF.toInt() // white 70 %
+        const val INDICATOR_MS = 200L
+        const val PRESS_MS = 90L
+        const val RELEASE_MS = 220L
+        const val PRESSED_SCALE = 0.84f
     }
+
+    /** What the list showed last time, to tell DiffUtil which icons came, went or changed. */
+    private data class Shown(val packageName: String, val windows: Int, val active: Boolean)
+
+    private var shown: List<Shown> = snapshot(apps)
+
+    private fun snapshot(list: List<DockApp>) = list.map {
+        Shown(it.packageName, it.tasks.count { task -> task.id != -1 }, isActive(it))
+    }
+
+    private fun isActive(app: DockApp) = app.tasks.isNotEmpty() && app.packageName == AppUtils.currentApp
 
     init {
         val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
@@ -62,7 +81,10 @@ class DockAppAdapter(
     override fun onBindViewHolder(viewHolder: ViewHolder, position: Int) {
         val app = apps[position]
         val size = app.tasks.size
-        val active = size > 0 && app.packageName == AppUtils.currentApp
+        val active = isActive(app)
+        // Same app redrawn (it became active or not): the pill grows or shrinks; a new one starts there
+        val sameApp = viewHolder.boundPackage == app.packageName
+        viewHolder.boundPackage = app.packageName
         viewHolder.itemView.isActivated = active && accentIndicator != null
         if (size > 0) {
             if (tintIndicators)
@@ -78,8 +100,7 @@ class DockAppAdapter(
                 )
 
             viewHolder.runningIndicator.alpha = if (app.tasks[0].id != -1) 1f else 0f
-            viewHolder.runningIndicator.layoutParams.width =
-                Utils.dpToPx(context, if (active) 16 else 6)
+            viewHolder.setIndicatorWidth(Utils.dpToPx(context, if (active) 16 else 6), sameApp)
 
             if (size > 1) {
                 viewHolder.taskCounter.text = size.toString()
@@ -109,15 +130,47 @@ class DockAppAdapter(
         return apps.size
     }
 
+    /** Applies only the differences, so opened and closed apps animate (TaskbarItemAnimator). */
     fun updateApps(newApps: ArrayList<DockApp>) {
+        val old = shown
+        val new = snapshot(newApps)
+        val diff = DiffUtil.calculateDiff(object : DiffUtil.Callback() {
+            override fun getOldListSize() = old.size
+            override fun getNewListSize() = new.size
+            override fun areItemsTheSame(o: Int, n: Int) = old[o].packageName == new[n].packageName
+            override fun areContentsTheSame(o: Int, n: Int) = old[o] == new[n]
+        })
         apps = newApps
-        notifyDataSetChanged()
+        shown = new
+        diff.dispatchUpdatesTo(this)
     }
 
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         var iconIv: ImageView = itemView.findViewById(R.id.icon_iv)
         var taskCounter: TextView = itemView.findViewById(R.id.task_count_badge)
         var runningIndicator: View = itemView.findViewById(R.id.running_indicator)
+        var boundPackage: String? = null
+        private var indicatorAnimator: ValueAnimator? = null
+
+        /** The open/active pill: it stretches to the new width when the app becomes active or not. */
+        fun setIndicatorWidth(width: Int, animate: Boolean) {
+            indicatorAnimator?.cancel()
+            val params = runningIndicator.layoutParams
+            if (!animate || params.width == width || params.width <= 0) {
+                params.width = width
+                runningIndicator.layoutParams = params
+                return
+            }
+            indicatorAnimator = ValueAnimator.ofInt(params.width, width).apply {
+                duration = INDICATOR_MS
+                interpolator = DecelerateInterpolator()
+                addUpdateListener {
+                    params.width = it.animatedValue as Int
+                    runningIndicator.layoutParams = params
+                }
+                start()
+            }
+        }
 
         fun bind(app: DockApp, listener: OnDockAppClickListener) {
             itemView.setOnClickListener { view -> listener.onDockAppClicked(app, view) }
@@ -129,6 +182,15 @@ class DockAppAdapter(
                 if (event.buttonState == MotionEvent.BUTTON_SECONDARY) {
                     listener.onDockAppLongClicked(app, view)
                     return@setOnTouchListener true
+                }
+                // Like Windows 11: the icon squeezes a little while pressed and springs back
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> iconIv.animate().scaleX(PRESSED_SCALE)
+                        .scaleY(PRESSED_SCALE).setDuration(PRESS_MS).start()
+
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> iconIv.animate().scaleX(1f)
+                        .scaleY(1f).setDuration(RELEASE_MS)
+                        .setInterpolator(OvershootInterpolator(2f)).start()
                 }
                 false
             }

@@ -113,6 +113,7 @@ import cu.axel.smartdock.adapters.AppShortcutAdapter
 import cu.axel.smartdock.adapters.AppTaskAdapter
 import cu.axel.smartdock.adapters.DisplaysAdapter
 import cu.axel.smartdock.adapters.DockAppAdapter
+import cu.axel.smartdock.adapters.TaskbarItemAnimator
 import cu.axel.smartdock.adapters.DockAppAdapter.OnDockAppClickListener
 import cu.axel.smartdock.adapters.NotificationAdapter
 import cu.axel.smartdock.adapters.NotificationAdapter.OnNotificationClickListener
@@ -1399,14 +1400,14 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
                     else
                         AppUtils.pinApp(context, app, AppUtils.DOCK_PINNED_LIST)
                     loadPinnedApps()
-                    updateRunningTasks(true)
+                    updateRunningTasks(force = true)
                 }
 
                 getString(R.string.taskbar_close_window), getString(R.string.taskbar_close_windows) -> {
                     app.tasks.filter { it.id > 0 }
                         .forEach { PrivilegedActions.closeTask(context, it.id) }
                     // The system needs a moment to drop the task from its list
-                    dockHandler.postDelayed({ updateRunningTasks(true) }, CLOSE_REFRESH_MS)
+                    dockHandler.postDelayed({ updateRunningTasks(force = true) }, CLOSE_REFRESH_MS)
                 }
             }
             if (view.isAttachedToWindow) windowManager.removeView(view)
@@ -1722,7 +1723,13 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             val start = if (sharedPreferences.getBoolean("center_running_apps", true))
                 ((barWidth - group) / 2).coerceIn(first, last) else first
             if (taskbarGroupStart != start) {
+                val previous = taskbarGroupStart
                 taskbarGroupStart = start
+                if (previous >= 0) {
+                    centerGroup.translationX += (previous - start).toFloat()
+                    centerGroup.animate().translationX(0f).setDuration(TaskbarItemAnimator.MOVE_MS)
+                        .setInterpolator(DecelerateInterpolator(1.5f)).start()
+                }
                 centerGroup.layoutParams = RelativeLayout.LayoutParams(
                     RelativeLayout.LayoutParams.WRAP_CONTENT,
                     RelativeLayout.LayoutParams.WRAP_CONTENT
@@ -1734,8 +1741,12 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             }
         }
         if (tasksGv.layoutParams.width != width) {
-            tasksGv.layoutParams.width = width
-            tasksGv.requestLayout()
+            val shrinking = width < tasksGv.layoutParams.width
+            val apply = Runnable {
+                tasksGv.layoutParams.width = width
+                tasksGv.requestLayout()
+            }
+            if (shrinking) tasksGv.postDelayed(apply, TaskbarItemAnimator.REMOVE_MS) else apply.run()
         }
     }
 
@@ -1743,9 +1754,13 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         pinnedApps = AppUtils.getPinnedApps(context, AppUtils.DOCK_PINNED_LIST)
     }
 
-    private fun updateRunningTasks(recreateAdapter: Boolean = false) {
+    /**
+     * [force] reads the windows again right away; [recreateAdapter] also rebuilds every icon (new icon
+     * pack or colours), which skips the open/close animations.
+     */
+    private fun updateRunningTasks(recreateAdapter: Boolean = false, force: Boolean = recreateAdapter) {
         val now = System.currentTimeMillis()
-        if (now - lastUpdate < 500 && !recreateAdapter)
+        if (now - lastUpdate < 500 && !force)
             return
         lastUpdate = now
 
@@ -2141,10 +2156,10 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
                 Toast.makeText(this, R.string.shizuku_ready, Toast.LENGTH_SHORT).show()
             shizukuSetupActive = false
             hideShizukuSetup()
-            updateRunningTasks(true)
+            updateRunningTasks(force = true)
         } else {
             if (shizukuSetupActive) showShizukuSetup(status)
-            updateRunningTasks(true)
+            updateRunningTasks(force = true)
         }
         quickSettings?.refresh()
     }
@@ -2714,6 +2729,8 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         tasksGv = dock!!.findViewById(R.id.apps_lv)
         val layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
         tasksGv.layoutManager = layoutManager
+        // Icons rise in when an app opens and shrink away when it closes (Windows 11)
+        tasksGv.itemAnimator = TaskbarItemAnimator()
         backBtn = dock!!.findViewById(R.id.back_btn)
         homeBtn = dock!!.findViewById(R.id.home_btn)
         recentBtn = dock!!.findViewById(R.id.recents_btn)
