@@ -34,4 +34,5 @@
     <integer name="glass_blur_radius_default">24</integer>
 
     <item name="glass_attach_listener" type="id" />
+    <item name="panel_animator" type="id" />
 </resources>

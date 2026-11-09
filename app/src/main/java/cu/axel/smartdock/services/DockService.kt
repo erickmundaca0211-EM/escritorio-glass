@@ -144,6 +144,7 @@ import cu.axel.smartdock.utils.DeviceUtils
 import cu.axel.smartdock.utils.IconPackUtils
 import cu.axel.smartdock.utils.NotificationIntents
 import cu.axel.smartdock.utils.OnSwipeListener
+import cu.axel.smartdock.utils.PanelAnimator
 import cu.axel.smartdock.utils.Utils
 import cu.axel.smartdock.widgets.HoverInterceptorLayout
 import cu.axel.smartdock.wrappers.ActivityManagerWrapper
@@ -605,6 +606,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
                 windowManager.removeView(view)
             }
             windowManager.addView(view, layoutParams)
+            PanelAnimator.show(view)
         } else launchApp(getDefaultLaunchMode(app.packageName), app.packageName)
         if (getDefaultLaunchMode(app.packageName) == "fullscreen") {
             if (isPinned && sharedPreferences.getBoolean("auto_unpin", true) && !autoHideEnabled()) {
@@ -1177,17 +1179,24 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         searchEt.showSoftInputOnFocus = !hardwareKeyboard
         if (hardwareKeyboard) searchEt.requestFocus() else searchEt.clearFocus()
 
+        // Still fading out from the last close: take that window away first
+        PanelAnimator.cancel(appMenu!!)
+        if (appMenu!!.isAttachedToWindow) windowManager.removeViewImmediate(appMenu)
         windowManager.addView(appMenu, layoutParams)
+        PanelAnimator.show(appMenu!!)
         appMenuVisible = true
         appsBtn.isActivated = true
     }
 
     fun hideAppMenu() {
         searchEt.setText("") // back to the home view next time
-        if (appMenu?.isAttachedToWindow == true)
-            windowManager.removeView(appMenu)
         appMenuVisible = false
         appsBtn.isActivated = false
+        val menu = appMenu ?: return
+        if (!menu.isAttachedToWindow) return
+        PanelAnimator.hide(menu) {
+            if (!appMenuVisible && menu.isAttachedToWindow) windowManager.removeView(menu)
+        }
     }
 
     private fun showStartHome() {
@@ -1315,6 +1324,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             onAction(position)
         }
         windowManager.addView(view, layoutParams)
+        PanelAnimator.show(view)
     }
 
     private suspend fun fetchInstalledApps(): ArrayList<App> = withContext(Dispatchers.Default) {
@@ -1459,6 +1469,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             }
         }
         windowManager.addView(view, layoutParams)
+        PanelAnimator.show(view)
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -1625,6 +1636,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             }
         }
         windowManager.addView(view, layoutParams)
+        PanelAnimator.show(view)
     }
 
     override fun onSharedPreferenceChanged(p1: SharedPreferences, preference: String?) {
@@ -2001,6 +2013,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             if (view.isAttachedToWindow) windowManager.removeView(view)
         }
         windowManager.addView(view, layoutParams)
+        PanelAnimator.show(view)
     }
 
     /** Left block: date, and the next calendar event when the optional permission is granted. */
@@ -2068,7 +2081,11 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
 
     private fun hideQuickSettingsPanel() {
         quickSettings?.release()
-        quickSettingsPanel?.let { if (it.isAttachedToWindow) windowManager.removeView(it) }
+        quickSettingsPanel?.let { panel ->
+            if (panel.isAttachedToWindow) PanelAnimator.hide(panel) {
+                if (panel.isAttachedToWindow) windowManager.removeView(panel)
+            }
+        }
         quickSettingsPanelVisible = false
         quickSettingsPanel = null
         quickSettings = null
@@ -2102,6 +2119,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             false
         }
         windowManager.addView(panel.view, layoutParams)
+        PanelAnimator.show(panel.view)
         quickSettingsPanel = panel.view
         quickSettings = panel
         quickSettingsPanelVisible = true
@@ -2129,7 +2147,12 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     }
 
     private fun hideNotificationCenter() {
-        notificationCenterWindow?.let { if (it.isAttachedToWindow) windowManager.removeView(it) }
+        val window = notificationCenterWindow
+        val center = notificationCenter
+        if (window != null && center != null && window.isAttachedToWindow)
+            PanelAnimator.hide(window, listOf(center.notificationsCard, center.calendarCard)) {
+                if (window.isAttachedToWindow) windowManager.removeView(window)
+            }
         notificationCenterWindow = null
         notificationCenter = null
         notificationCenterVisible = false
@@ -2167,6 +2190,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             false
         }
         windowManager.addView(center.view, layoutParams)
+        PanelAnimator.show(center.view, listOf(center.notificationsCard, center.calendarCard))
         notificationCenterWindow = center.view
         notificationCenter = center
         notificationCenterVisible = true
@@ -2248,6 +2272,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         }
         ColorUtils.applyMainColor(context, sharedPreferences, powerMenu!!)
         windowManager.addView(powerMenu, layoutParams)
+        PanelAnimator.show(powerMenu!!)
         topRightCorner!!.visibility = if (sharedPreferences.getBoolean(
                 "enable_corner_top_right",
                 false
