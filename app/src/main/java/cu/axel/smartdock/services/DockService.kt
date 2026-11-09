@@ -194,6 +194,9 @@ private const val TRAY_ARROW_MS = 220L
 /** After closing a window, when to read the open windows again. */
 private const val CLOSE_REFRESH_MS = 350L
 
+/** When the shrinking taskbar list checks whether the closing icon is still animating. */
+private const val SHRINK_CHECK_MS = 60L
+
 private const val SHIZUKU_WINDOW_WIDTH_DP = 400
 
 /** The Shizuku window waits for the bar to settle after desktop mode starts. */
@@ -1012,10 +1015,14 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         }
 
         dockHandler.removeCallbacksAndMessages(null)
-        updateRunningTasks()
         val anim = AnimationUtils.loadAnimation(context, R.anim.slide_up)
         dockLayout.visibility = View.VISIBLE
         dockLayout.startAnimation(anim)
+        // Once the bar has slid in, show what changed meanwhile so it animates in sight
+        dockHandler.postDelayed({
+            taskbarStale = false
+            updateRunningTasks(force = true)
+        }, anim.duration)
     }
 
     fun pinDock() {
@@ -1699,6 +1706,9 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     /** Left offset of the centre group inside the bar (-1 = not placed yet). */
     private var taskbarGroupStart = -1
 
+    /** The open apps changed while the bar was hidden: apply it once the bar is back on screen. */
+    private var taskbarStale = false
+
     /**
      * Windows 11 behaviour: Start + apps stay centred on the screen; as more apps open the group
      * slides sideways only as much as needed so it never covers the date block or the tray, and
@@ -1742,11 +1752,17 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         }
         if (tasksGv.layoutParams.width != width) {
             val shrinking = width < tasksGv.layoutParams.width
-            val apply = Runnable {
+            val apply = {
                 tasksGv.layoutParams.width = width
                 tasksGv.requestLayout()
             }
-            if (shrinking) tasksGv.postDelayed(apply, TaskbarItemAnimator.REMOVE_MS) else apply.run()
+            // Growing: right away, so a new icon has room. Shrinking: once the closing icon is gone.
+            // The list lays out (and starts its animations) a frame or two later: ask after that,
+            // or the closing icon would be cut off before it shrinks
+            if (shrinking) tasksGv.postDelayed({
+                val animator = tasksGv.itemAnimator
+                if (animator != null) animator.isRunning { apply() } else apply()
+            }, SHRINK_CHECK_MS) else apply()
         }
     }
 
@@ -1759,6 +1775,10 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
      * pack or colours), which skips the open/close animations.
      */
     private fun updateRunningTasks(recreateAdapter: Boolean = false, force: Boolean = recreateAdapter) {
+        if (!recreateAdapter && ::dockLayout.isInitialized && !dockLayout.isVisible) {
+            taskbarStale = true
+            return
+        }
         val now = System.currentTimeMillis()
         if (now - lastUpdate < 500 && !force)
             return
@@ -1808,11 +1828,10 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         // When there are more apps than room the list scrolls: keep the app in front in view,
         // aligned to whole icons so the first one is never cut in half
         val active = apps.indexOfFirst { it.packageName == AppUtils.currentApp }
-        if (active != -1) {
-            val visible = max(1, tasksGv.layoutParams.width / Utils.dpToPx(context, TASKBAR_ITEM_WIDTH_DP))
+        val visible = max(1, tasksGv.layoutParams.width / Utils.dpToPx(context, TASKBAR_ITEM_WIDTH_DP))
+        if (active != -1 && apps.size > visible)
             (tasksGv.layoutManager as? LinearLayoutManager)
                 ?.scrollToPositionWithOffset(max(0, active - visible + 1), 0)
-        }
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
@@ -2773,13 +2792,12 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         dockLayout.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
             fitRunningApps(runningAppsCount)
         }
-        dock!!.setOnHoverListener { _, event ->
-            if (event.action == MotionEvent.ACTION_HOVER_ENTER) {
+        dock!!.onBarHover = { action ->
+            if (action == MotionEvent.ACTION_HOVER_ENTER) {
                 if (dockLayout.isGone) showDock()
-            } else if (event.action == MotionEvent.ACTION_HOVER_EXIT) if (dockLayout.isVisible) {
+            } else if (action == MotionEvent.ACTION_HOVER_EXIT) if (dockLayout.isVisible) {
                 if (autoHidden) hideDock(TASKBAR_HOVER_HIDE_DELAY_MS, auto = true) else hideDock(500)
             }
-            false
         }
         gestureDetector = GestureDetector(context, object : OnSwipeListener() {
             override fun onSwipe(direction: Direction): Boolean {

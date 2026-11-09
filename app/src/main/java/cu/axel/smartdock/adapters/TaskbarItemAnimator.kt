@@ -25,7 +25,7 @@ class TaskbarItemAnimator : SimpleItemAnimator() {
         val view = holder.itemView
         running.add(holder)
         view.animate().alpha(0f).scaleX(SMALL).scaleY(SMALL).setDuration(REMOVE_MS)
-            .setInterpolator(DecelerateInterpolator()).withEndAction {
+            .setStartDelay(0).setInterpolator(DecelerateInterpolator()).withEndAction {
                 reset(view)
                 running.remove(holder)
                 dispatchRemoveFinished(holder)
