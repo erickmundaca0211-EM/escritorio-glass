@@ -3,6 +3,7 @@ package cu.axel.smartdock.utils
 import android.app.ActivityOptions
 import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 
@@ -10,14 +11,15 @@ import android.os.Bundle
 object NotificationIntents {
 
     /**
-     * Sends a notification's [intent] (its content or one of its action buttons).
+     * Sends a notification's [intent] (its content or one of its action buttons), with [fillIn]
+     * carrying a reply typed by the user, if any.
      *
      * Since Android 14, a PendingIntent sent by another app only opens an activity from the
      * background when the sender says so: without these options the tap does nothing. Call this only
      * from a user's tap, never on its own.
      */
-    fun sendFromTap(context: Context, intent: PendingIntent): Boolean = try {
-        intent.send(context, 0, null, null, null, null, tapOptions())
+    fun sendFromTap(context: Context, intent: PendingIntent, fillIn: Intent? = null): Boolean = try {
+        intent.send(context, 0, fillIn, null, null, null, tapOptions())
         true
     } catch (_: PendingIntent.CanceledException) {
         false

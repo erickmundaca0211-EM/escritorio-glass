@@ -2149,6 +2149,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     private fun hideNotificationCenter() {
         val window = notificationCenterWindow
         val center = notificationCenter
+        center?.closeReply()
         if (window != null && center != null && window.isAttachedToWindow)
             PanelAnimator.hide(window, listOf(center.notificationsCard, center.calendarCard)) {
                 if (window.isAttachedToWindow) windowManager.removeView(window)
@@ -2178,6 +2179,8 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         )
         layoutParams.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
+        // The reply field sits near the top: the keyboard must not push the column around
+        layoutParams.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING
         layoutParams.gravity = Gravity.BOTTOM or Gravity.END
         layoutParams.x = side
         layoutParams.y = dockHeight + gap
@@ -2214,6 +2217,26 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         override fun openCalendar() {
             hideNotificationCenter()
             openCalendarApp()
+        }
+
+        override fun sendAction(
+            sbn: StatusBarNotification, action: Notification.Action, fillIn: Intent?
+        ) {
+            val intent = action.actionIntent ?: return
+            // A button that opens a screen closes the column, like the system shade
+            if (NotificationIntents.sendFromTap(context, intent, fillIn) &&
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && intent.isActivity
+            ) hideNotificationCenter()
+        }
+
+        override fun setTyping(typing: Boolean) {
+            val window = notificationCenterWindow ?: return
+            if (!window.isAttachedToWindow) return
+            val params = window.layoutParams as WindowManager.LayoutParams
+            params.flags = if (typing)
+                params.flags and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
+            else params.flags or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+            windowManager.updateViewLayout(window, params)
         }
     }
 
