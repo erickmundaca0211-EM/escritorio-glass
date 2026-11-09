@@ -90,4 +90,18 @@
     <string name="cal_prev">Previous month</string>
     <string name="cal_next">Next month</string>
     <string name="qs_percent">%d %%</string>
+    <string name="shizuku_later">Not now</string>
+    <string name="shizuku_install_title">Install Shizuku</string>
+    <string name="shizuku_install_body">Escritorio Glass uses Shizuku to see the open windows, close them and turn off the system pull-down panel. It is free and open source, and it only has these powers while you keep it started.</string>
+    <string name="shizuku_install_action">Download on Play Store</string>
+    <string name="shizuku_start_title">Shizuku is off</string>
+    <string name="shizuku_start_body">It turns off every time the phone restarts. Open it and start it with wireless debugging; Escritorio Glass will notice by itself.</string>
+    <string name="shizuku_start_action">Start Shizuku</string>
+    <string name="shizuku_allow_title">Let Escritorio Glass use Shizuku</string>
+    <string name="shizuku_allow_body">Shizuku is running. Accept in the window Shizuku shows; it will remember it next time.</string>
+    <string name="shizuku_allow_action">Allow</string>
+    <string name="shizuku_ready">Shizuku is ready</string>
+    <string name="qs_shizuku_off">Shizuku is off</string>
+    <string name="shizuku_reminder_title">Remind me to start Shizuku</string>
+    <string name="shizuku_reminder_summary">When entering desktop mode, show a window if Shizuku is missing or off</string>
 </resources>

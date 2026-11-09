@@ -88,6 +88,12 @@
             android:key="autohide_fullscreen"
             android:summary="@string/autohide_fullscreen_summary"
             android:title="@string/autohide_fullscreen_title" />
+
+        <SwitchPreferenceCompat
+            android:defaultValue="true"
+            android:key="shizuku_reminder"
+            android:summary="@string/shizuku_reminder_summary"
+            android:title="@string/shizuku_reminder_title" />
     </PreferenceCategory>
 
     <PreferenceCategory android:title="@string/dock">

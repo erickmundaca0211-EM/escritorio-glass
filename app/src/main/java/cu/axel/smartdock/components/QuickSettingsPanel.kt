@@ -35,6 +35,7 @@ import androidx.core.view.isVisible
 import cu.axel.smartdock.R
 import cu.axel.smartdock.system.DesktopScale
 import cu.axel.smartdock.system.PrivilegedActions
+import cu.axel.smartdock.system.ShizukuState
 import cu.axel.smartdock.utils.CallAudio
 import cu.axel.smartdock.utils.ColorUtils
 import cu.axel.smartdock.utils.Haptics
@@ -57,6 +58,9 @@ class QuickSettingsPanel(
     private val host: Host
 ) {
     interface Host {
+        /** Shizuku is missing or off: opens its setup window. */
+        fun showShizukuSetup()
+
         /** Opens a system screen and closes the panel. */
         fun openFromQuickSettings(intent: Intent)
 
@@ -106,6 +110,7 @@ class QuickSettingsPanel(
     private val volumeSeek: SeekBar = view.findViewById(R.id.qs_volume_seek)
     private val volumeValue: TextView = view.findViewById(R.id.qs_volume_value)
     private val callRow: View = view.findViewById(R.id.qs_call_row)
+    private val shizukuBtn: ImageView = view.findViewById(R.id.qs_shizuku_btn)
     private val callSeek: SeekBar = view.findViewById(R.id.qs_call_seek)
     private val callValue: TextView = view.findViewById(R.id.qs_call_value)
     private val scaleSeek: SeekBar = view.findViewById(R.id.qs_scale_seek)
@@ -123,6 +128,8 @@ class QuickSettingsPanel(
         buildTiles()
         setUpSliders()
         view.findViewById<View>(R.id.qs_edit_btn).setOnClickListener { host.openAppSettings() }
+        shizukuBtn.imageTintList = ColorStateList.valueOf(accent)
+        shizukuBtn.setOnClickListener { host.showShizukuSetup() }
         view.findViewById<View>(R.id.qs_settings_btn).setOnClickListener {
             host.openFromQuickSettings(Intent(Settings.ACTION_SETTINGS))
         }
@@ -140,6 +147,8 @@ class QuickSettingsPanel(
 
     /** Reads every state again (the panel opened, or Wi-Fi / Bluetooth changed). */
     fun refresh() {
+        shizukuBtn.isVisible = sharedPreferences.getBoolean("shizuku_reminder", true) &&
+                !ShizukuState.isReady(context)
         Tile.entries.forEach { renderTile(it) }
         refreshSliders()
         refreshBattery()

@@ -89,4 +89,18 @@
     <string name="cal_prev">Mes anterior</string>
     <string name="cal_next">Mes siguiente</string>
     <string name="qs_percent">%d %%</string>
+    <string name="shizuku_later">Ahora no</string>
+    <string name="shizuku_install_title">Instala Shizuku</string>
+    <string name="shizuku_install_body">Escritorio Glass usa Shizuku para ver las ventanas abiertas, cerrarlas y apagar la cortina del sistema. Es gratuita y de código abierto, y solo tiene estos permisos mientras la mantengas iniciada.</string>
+    <string name="shizuku_install_action">Descargar en Play Store</string>
+    <string name="shizuku_start_title">Shizuku está apagada</string>
+    <string name="shizuku_start_body">Se apaga cada vez que reinicias el teléfono. Ábrela e iníciala con la depuración inalámbrica; Escritorio Glass lo notará solo.</string>
+    <string name="shizuku_start_action">Iniciar Shizuku</string>
+    <string name="shizuku_allow_title">Permite a Escritorio Glass usar Shizuku</string>
+    <string name="shizuku_allow_body">Shizuku ya está iniciada. Acepta en la ventana que muestra Shizuku; lo recordará para la próxima vez.</string>
+    <string name="shizuku_allow_action">Dar permiso</string>
+    <string name="shizuku_ready">Shizuku está lista</string>
+    <string name="qs_shizuku_off">Shizuku está apagada</string>
+    <string name="shizuku_reminder_title">Recordar iniciar Shizuku</string>
+    <string name="shizuku_reminder_summary">Al entrar al modo escritorio, muestra una ventana si Shizuku falta o está apagada</string>
 </resources>

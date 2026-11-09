@@ -105,6 +105,7 @@ import cu.axel.smartdock.utils.StartMenuUtils
 import cu.axel.smartdock.components.CalendarPanel
 import cu.axel.smartdock.components.NotificationCenter
 import cu.axel.smartdock.components.QuickSettingsPanel
+import cu.axel.smartdock.components.ShizukuSetupWindow
 import cu.axel.smartdock.components.StatusIcons
 import cu.axel.smartdock.adapters.AppAdapter
 import cu.axel.smartdock.adapters.AppAdapter.OnAppClickListener
@@ -135,6 +136,7 @@ import cu.axel.smartdock.glass.GlassController
 import cu.axel.smartdock.glass.GlassSurface
 import cu.axel.smartdock.utils.CalendarUtils
 import cu.axel.smartdock.system.DesktopScale
+import cu.axel.smartdock.system.ShizukuState
 import android.provider.CalendarContract
 import android.text.format.DateFormat
 import java.util.Locale
@@ -189,6 +191,14 @@ private const val NOTIFICATION_CENTER_WIDTH_DP = 340
 
 /** Turn of the "^" arrow when the hidden icons open or close. */
 private const val TRAY_ARROW_MS = 220L
+
+private const val SHIZUKU_WINDOW_WIDTH_DP = 400
+
+/** The Shizuku window waits for the bar to settle after desktop mode starts. */
+private const val SHIZUKU_PROMPT_DELAY_MS = 1500L
+
+/** Setting: show the Shizuku window when entering desktop mode (Apariencia, "Escritorio"). */
+private const val SHIZUKU_REMINDER = "shizuku_reminder"
 private const val PANEL_SIDE_MARGIN_DP = 10
 private const val TASKBAR_AUTOHIDE_DELAY_MS = 1000L // wait before hiding over a full-screen app (3 s felt slow)
 private const val TASKBAR_HOVER_HIDE_DELAY_MS = 1000 // after the mouse leaves the bar
@@ -207,6 +217,13 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     private var calendarPanelVisible = false
     private var statusIcons: StatusIcons? = null
     private var trayOverflowWindow: View? = null
+    private var shizukuWindow: ShizukuSetupWindow? = null
+
+    /** The user is going through the Shizuku setup: show each next step as it becomes possible. */
+    private var shizukuSetupActive = false
+
+    // Own handler: the bar clears dockHandler's queue every time it shows or hides
+    private val shizukuHandler = Handler(Looper.getMainLooper())
     private var wifiManagerWrapper: WifiManagerWrapper? = null
     private var bluetoothManagerWrapper: BluetoothManagerWrapper? = null
     private var activityManagerWrapper: ActivityManagerWrapper? = null
@@ -337,12 +354,9 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         }
         //Shizuku stuff
         initWrappers()
-        Shizuku.addBinderReceivedListener {
-            initWrappers()
-        }
-        Shizuku.addBinderDeadListener {
-            destroyWrappers()
-        }
+        Shizuku.addBinderReceivedListener(shizukuReceived)
+        Shizuku.addBinderDeadListener(shizukuDead)
+        Shizuku.addRequestPermissionResultListener(shizukuPermission)
     }
 
     private fun destroyWrappers() {
@@ -520,6 +534,12 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
 
         //Play startup sound
         DeviceUtils.playEventSound(this, "startup_sound")
+
+        // Shizuku missing or off: offer to set it up once the bar is on screen
+        ContextCompat.registerReceiver(this, packageAddedReceiver, IntentFilter(Intent.ACTION_PACKAGE_ADDED).apply {
+            addDataScheme("package")
+        }, ContextCompat.RECEIVER_NOT_EXPORTED)
+        shizukuHandler.postDelayed({ maybeShowShizukuSetup() }, SHIZUKU_PROMPT_DELAY_MS)
 
         //Show the dock
         if (sharedPreferences.getBoolean("pin_dock", true))
@@ -2183,7 +2203,105 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         statusArea.isActivated = true
     }
 
+    // ---- Shizuku setup (docs/PLAN.md): a separate app the user installs, starts and allows
+
+    private val shizukuReceived = Shizuku.OnBinderReceivedListener {
+        initWrappers()
+        shizukuHandler.post { onShizukuChanged() }
+    }
+    private val shizukuDead = Shizuku.OnBinderDeadListener {
+        destroyWrappers()
+        shizukuHandler.post { onShizukuChanged() }
+    }
+    private val shizukuPermission = Shizuku.OnRequestPermissionResultListener { _, _ ->
+        shizukuHandler.post { onShizukuChanged() }
+    }
+
+    /** Shizuku was installed while the user was setting it up: show how to start it. */
+    private val packageAddedReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.data?.schemeSpecificPart == ShizukuState.PACKAGE && shizukuSetupActive)
+                showShizukuSetup()
+        }
+    }
+
+    private fun maybeShowShizukuSetup() {
+        if (!sharedPreferences.getBoolean(SHIZUKU_REMINDER, true)) return
+        showShizukuSetup()
+    }
+
+    private fun onShizukuChanged() {
+        val status = ShizukuState.status(this)
+        if (status == ShizukuState.Status.READY) {
+            initWrappers()
+            if (shizukuSetupActive || shizukuWindow != null)
+                Toast.makeText(this, R.string.shizuku_ready, Toast.LENGTH_SHORT).show()
+            shizukuSetupActive = false
+            hideShizukuSetup()
+            updateRunningTasks(true)
+        } else if (shizukuSetupActive) showShizukuSetup(status)
+        quickSettings?.refresh()
+    }
+
+    private fun showShizukuSetup(status: ShizukuState.Status = ShizukuState.status(this)) {
+        if (status == ShizukuState.Status.READY) return
+        shizukuWindow?.let {
+            it.show(status)
+            return
+        }
+        val window = ShizukuSetupWindow(
+            ContextThemeWrapper(context, R.style.AppTheme_Dock), sharedPreferences, shizukuHost
+        )
+        window.show(status)
+        val bounds = DeviceUtils.getDisplayBounds(context, Display.DEFAULT_DISPLAY)
+        val side = Utils.dpToPx(context, PANEL_SIDE_MARGIN_DP)
+        val layoutParams = Utils.makeWindowParams(
+            Utils.dpToPx(context, SHIZUKU_WINDOW_WIDTH_DP).coerceAtMost(bounds.width() - side * 2),
+            WindowManager.LayoutParams.WRAP_CONTENT, context, preferSecondaryDisplay
+        )
+        layoutParams.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+        layoutParams.gravity = Gravity.CENTER
+        ColorUtils.applyMainColor(context, sharedPreferences, window.view, GlassSurface.PANEL)
+        windowManager.addView(window.view, layoutParams)
+        PanelAnimator.show(window.view)
+        shizukuWindow = window
+    }
+
+    private fun hideShizukuSetup() {
+        val window = shizukuWindow ?: return
+        shizukuWindow = null
+        val view = window.view
+        if (view.isAttachedToWindow) PanelAnimator.hide(view) {
+            if (view.isAttachedToWindow) windowManager.removeView(view)
+        }
+    }
+
+    private val shizukuHost = object : ShizukuSetupWindow.Host {
+        override fun onShizukuAction(status: ShizukuState.Status) {
+            shizukuSetupActive = true
+            hideShizukuSetup()
+            when (status) {
+                ShizukuState.Status.NOT_INSTALLED -> ShizukuState.openStorePage(this@DockService)
+                ShizukuState.Status.STOPPED ->
+                    if (!ShizukuState.openShizuku(this@DockService)) ShizukuState.openStorePage(this@DockService)
+
+                ShizukuState.Status.NO_PERMISSION -> ShizukuState.requestPermission()
+                ShizukuState.Status.READY -> shizukuSetupActive = false
+            }
+        }
+
+        override fun onShizukuLater() {
+            shizukuSetupActive = false
+            hideShizukuSetup()
+        }
+    }
+
     private val quickSettingsHost = object : QuickSettingsPanel.Host {
+        override fun showShizukuSetup() {
+            hideQuickSettingsPanel()
+            this@DockService.showShizukuSetup()
+        }
+
         override fun openFromQuickSettings(intent: Intent) {
             hideQuickSettingsPanel()
             try {
@@ -2587,6 +2705,16 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
 
     override fun onDestroy() {
         //TODO: Unregister all receivers
+        Shizuku.removeBinderReceivedListener(shizukuReceived)
+        Shizuku.removeBinderDeadListener(shizukuDead)
+        Shizuku.removeRequestPermissionResultListener(shizukuPermission)
+        shizukuHandler.removeCallbacksAndMessages(null)
+        try {
+            unregisterReceiver(packageAddedReceiver)
+        } catch (_: IllegalArgumentException) {
+        }
+        shizukuWindow?.view?.let { if (it.isAttachedToWindow) windowManager.removeViewImmediate(it) }
+        shizukuWindow = null
         statusIcons?.stop()
         statusIcons = null
         sharedPreferences.unregisterOnSharedPreferenceChangeListener(this)

@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Shizuku setup window: one glass card in the middle of the screen with what is missing (install,
+    start or allow Shizuku), the button that does it and "Ahora no".
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/shizuku_card"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/round_rect"
+    android:orientation="vertical"
+    android:paddingStart="22dp"
+    android:paddingTop="20dp"
+    android:paddingEnd="22dp"
+    android:paddingBottom="18dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:id="@+id/shizuku_icon"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="@drawable/start_avatar_bg"
+            android:importantForAccessibility="no"
+            android:padding="8dp"
+            android:src="@drawable/ic_eg_key" />
+
+        <TextView
+            android:id="@+id/shizuku_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_weight="1"
+            android:textColor="@color/glass_text_primary"
+            android:textFontWeight="600"
+            android:textSize="16sp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/shizuku_body"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:lineSpacingExtra="2dp"
+        android:textColor="@color/glass_text_secondary"
+        android:textSize="13sp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="18dp"
+        android:gravity="end|center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/shizuku_later"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:background="@drawable/start_pill_bg"
+            android:gravity="center"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:text="@string/shizuku_later"
+            android:textColor="@color/glass_text_primary"
+            android:textSize="13sp" />
+
+        <TextView
+            android:id="@+id/shizuku_action"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:layout_marginStart="10dp"
+            android:gravity="center"
+            android:paddingStart="18dp"
+            android:paddingEnd="18dp"
+            android:textColor="@color/on_accent"
+            android:textFontWeight="600"
+            android:textSize="13sp" />
+    </LinearLayout>
+</LinearLayout>
