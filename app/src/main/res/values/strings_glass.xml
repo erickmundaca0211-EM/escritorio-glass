@@ -65,4 +65,26 @@
     <string name="desktop_off_message">Your phone works as usual. Do you want to go back to the desktop?</string>
     <string name="desktop_enter">Enter desktop mode</string>
     <string name="desktop_not_now">Not now</string>
+    <string name="qs_wifi">Wi-Fi</string>
+    <string name="qs_bluetooth">Bluetooth</string>
+    <string name="qs_airplane">Airplane mode</string>
+    <string name="qs_eye_comfort">Eye comfort</string>
+    <string name="qs_battery_saver">Battery saver</string>
+    <string name="qs_landscape">Landscape lock</string>
+    <string name="qs_dnd">Do not disturb</string>
+    <string name="qs_flashlight">Flashlight</string>
+    <string name="qs_cast">Cast</string>
+    <string name="qs_brightness">Brightness</string>
+    <string name="qs_volume">Volume</string>
+    <string name="qs_scale">Desktop scale</string>
+    <string name="qs_edit">Escritorio Glass settings</string>
+    <string name="qs_settings">Settings</string>
+    <string name="qs_brightness_permission">To change the brightness, allow \"Modify system settings\" for Escritorio Glass</string>
+    <string name="nc_title">Notifications</string>
+    <string name="nc_clear_all">Clear all</string>
+    <string name="nc_empty">No new notifications</string>
+    <string name="nc_dismiss">Dismiss</string>
+    <string name="cal_prev">Previous month</string>
+    <string name="cal_next">Next month</string>
+    <string name="qs_percent">%d %%</string>
 </resources>

@@ -64,4 +64,26 @@
     <string name="desktop_off_message">Tu teléfono funciona como siempre. ¿Quieres volver al escritorio?</string>
     <string name="desktop_enter">Entrar al modo escritorio</string>
     <string name="desktop_not_now">Ahora no</string>
+    <string name="qs_wifi">Wi-Fi</string>
+    <string name="qs_bluetooth">Bluetooth</string>
+    <string name="qs_airplane">Modo avión</string>
+    <string name="qs_eye_comfort">Protección visual</string>
+    <string name="qs_battery_saver">Ahorro de energía</string>
+    <string name="qs_landscape">Horizontal fijo</string>
+    <string name="qs_dnd">No molestar</string>
+    <string name="qs_flashlight">Linterna</string>
+    <string name="qs_cast">Transmitir</string>
+    <string name="qs_brightness">Brillo</string>
+    <string name="qs_volume">Volumen</string>
+    <string name="qs_scale">Escala del escritorio</string>
+    <string name="qs_edit">Ajustes de Escritorio Glass</string>
+    <string name="qs_settings">Ajustes</string>
+    <string name="qs_brightness_permission">Para cambiar el brillo, permite \"Modificar ajustes del sistema\" a Escritorio Glass</string>
+    <string name="nc_title">Notificaciones</string>
+    <string name="nc_clear_all">Borrar todo</string>
+    <string name="nc_empty">No hay notificaciones nuevas</string>
+    <string name="nc_dismiss">Descartar</string>
+    <string name="cal_prev">Mes anterior</string>
+    <string name="cal_next">Mes siguiente</string>
+    <string name="qs_percent">%d %%</string>
 </resources>

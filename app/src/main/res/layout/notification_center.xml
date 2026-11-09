@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Escritorio Glass notifications and calendar column (docs/DISENO.md, "Notificaciones y calendario").
+    Two glass cards, 340 dp wide: notifications (grouped by app, "Borrar todo") and a compact month.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:id="@+id/nc_notifications_card"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="@drawable/round_rect"
+        android:orientation="vertical"
+        android:paddingStart="16dp"
+        android:paddingTop="14dp"
+        android:paddingEnd="14dp"
+        android:paddingBottom="14dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="26dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/nc_title"
+                android:textColor="@color/glass_text_primary"
+                android:textFontWeight="600"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/nc_clear_all"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/start_pill_bg"
+                android:paddingStart="10dp"
+                android:paddingTop="3dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="3dp"
+                android:text="@string/nc_clear_all"
+                android:textColor="@color/glass_text_primary"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/nc_list"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginTop="8dp"
+            android:layout_weight="1"
+            android:fadingEdgeLength="16dp"
+            android:overScrollMode="never"
+            android:requiresFadingEdge="vertical" />
+
+        <TextView
+            android:id="@+id/nc_empty"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:text="@string/nc_empty"
+            android:textColor="@color/glass_text_secondary"
+            android:textSize="12sp"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/nc_calendar_card"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/round_rect"
+        android:orientation="vertical"
+        android:paddingStart="16dp"
+        android:paddingTop="12dp"
+        android:paddingEnd="14dp"
+        android:paddingBottom="12dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="24dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/cal_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@drawable/taskbar_button_bg"
+                android:singleLine="true"
+                android:textColor="@color/glass_text_primary"
+                android:textFontWeight="600"
+                android:textSize="13sp" />
+
+            <ImageView
+                android:id="@+id/cal_prev"
+                android:layout_width="30dp"
+                android:layout_height="24dp"
+                android:background="@drawable/taskbar_button_bg"
+                android:contentDescription="@string/cal_prev"
+                android:padding="5dp"
+                android:src="@drawable/ic_eg_chevron_up" />
+
+            <ImageView
+                android:id="@+id/cal_next"
+                android:layout_width="30dp"
+                android:layout_height="24dp"
+                android:layout_marginStart="2dp"
+                android:background="@drawable/taskbar_button_bg"
+                android:contentDescription="@string/cal_next"
+                android:padding="5dp"
+                android:src="@drawable/ic_eg_chevron_down" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/cal_weekdays"
+            android:layout_width="match_parent"
+            android:layout_height="18dp"
+            android:layout_marginTop="6dp"
+            android:orientation="horizontal" />
+
+        <GridLayout
+            android:id="@+id/cal_days"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:columnCount="7" />
+    </LinearLayout>
+</LinearLayout>
