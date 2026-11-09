@@ -1718,6 +1718,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         if (!::tasksGv.isInitialized || !::centerGroup.isInitialized) return
         val itemWidth = Utils.dpToPx(context, TASKBAR_ITEM_WIDTH_DP)
         var width = itemWidth * count
+        var start = -1
         val barWidth = dockLayout.width - dockLayout.paddingStart - dockLayout.paddingEnd
         // Before the first layout the XML keeps the group centred; the layout listener calls us again
         if (barWidth > 0) {
@@ -1730,39 +1731,48 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             val group = nav + width
             val first = left + gap
             val last = max(first, barWidth - right - gap - group)
-            val start = if (sharedPreferences.getBoolean("center_running_apps", true))
+            start = if (sharedPreferences.getBoolean("center_running_apps", true))
                 ((barWidth - group) / 2).coerceIn(first, last) else first
-            if (taskbarGroupStart != start) {
-                val previous = taskbarGroupStart
-                taskbarGroupStart = start
-                if (previous >= 0) {
-                    centerGroup.translationX += (previous - start).toFloat()
-                    centerGroup.animate().translationX(0f).setDuration(TaskbarItemAnimator.MOVE_MS)
-                        .setInterpolator(DecelerateInterpolator(1.5f)).start()
-                }
-                centerGroup.layoutParams = RelativeLayout.LayoutParams(
-                    RelativeLayout.LayoutParams.WRAP_CONTENT,
-                    RelativeLayout.LayoutParams.WRAP_CONTENT
-                ).apply {
-                    addRule(RelativeLayout.ALIGN_PARENT_START)
-                    addRule(RelativeLayout.CENTER_VERTICAL)
-                    marginStart = start
-                }
+        }
+        taskbarTargetWidth = width
+        taskbarTargetStart = start
+        // Growing: right away, so a new icon has room. Shrinking: only once the closing icon has sunk
+        // away, and the group re-centres at that same moment, or the closing icon would drift sideways
+        // (or be cut off) while it leaves. The list starts its animations a frame or two later: ask
+        // after that
+        if (width < tasksGv.layoutParams.width) tasksGv.postDelayed({
+            val animator = tasksGv.itemAnimator
+            if (animator != null) animator.isRunning { applyTaskbarLayout() } else applyTaskbarLayout()
+        }, SHRINK_CHECK_MS) else applyTaskbarLayout()
+    }
+
+    /** Latest place and width worked out by [fitRunningApps] (-1 = not known yet). */
+    private var taskbarTargetStart = -1
+    private var taskbarTargetWidth = -1
+
+    private fun applyTaskbarLayout() {
+        val start = taskbarTargetStart
+        if (start >= 0 && taskbarGroupStart != start) {
+            val previous = taskbarGroupStart
+            taskbarGroupStart = start
+            if (previous >= 0) {
+                centerGroup.translationX += (previous - start).toFloat()
+                centerGroup.animate().translationX(0f).setDuration(TaskbarItemAnimator.MOVE_MS)
+                    .setInterpolator(DecelerateInterpolator(1.5f)).start()
+            }
+            centerGroup.layoutParams = RelativeLayout.LayoutParams(
+                RelativeLayout.LayoutParams.WRAP_CONTENT,
+                RelativeLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                addRule(RelativeLayout.ALIGN_PARENT_START)
+                addRule(RelativeLayout.CENTER_VERTICAL)
+                marginStart = start
             }
         }
-        if (tasksGv.layoutParams.width != width) {
-            val shrinking = width < tasksGv.layoutParams.width
-            val apply = {
-                tasksGv.layoutParams.width = width
-                tasksGv.requestLayout()
-            }
-            // Growing: right away, so a new icon has room. Shrinking: once the closing icon is gone.
-            // The list lays out (and starts its animations) a frame or two later: ask after that,
-            // or the closing icon would be cut off before it shrinks
-            if (shrinking) tasksGv.postDelayed({
-                val animator = tasksGv.itemAnimator
-                if (animator != null) animator.isRunning { apply() } else apply()
-            }, SHRINK_CHECK_MS) else apply()
+        val width = taskbarTargetWidth
+        if (width >= 0 && tasksGv.layoutParams.width != width) {
+            tasksGv.layoutParams.width = width
+            tasksGv.requestLayout()
         }
     }
 
@@ -2500,7 +2510,9 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         ColorUtils.applySecondaryColor(context, sharedPreferences, pinBtn)
         if (!ColorUtils.isGlassTheme(sharedPreferences))
             ColorUtils.applySecondaryColor(context, sharedPreferences, powerBtn)
-        ColorUtils.applySecondaryColor(context, sharedPreferences, statusArea)
+        // Glass keeps the button's own hover and pressed states: a tint here would wash them out
+        if (!ColorUtils.isGlassTheme(sharedPreferences))
+            ColorUtils.applySecondaryColor(context, sharedPreferences, statusArea)
     }
 
     private fun updateCorners() {

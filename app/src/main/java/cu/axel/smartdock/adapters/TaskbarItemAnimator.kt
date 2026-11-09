@@ -1,14 +1,16 @@
 package cu.axel.smartdock.adapters
 
 import android.view.View
+import android.view.animation.AccelerateInterpolator
 import android.view.animation.DecelerateInterpolator
 import android.view.animation.OvershootInterpolator
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.SimpleItemAnimator
 
 /**
- * Taskbar icons coming and going like Windows 11: a new app's icon rises and grows into place with a
- * small bounce, a closed one shrinks and fades away, and the others slide to their new places.
+ * Taskbar icons coming and going like Windows 11: a new app's icon rises from below the bar into place
+ * with a small bounce, a closed one sinks back down into the bar as it fades, and the others slide to
+ * their new places. The list clips its items, so the icon seems to go in and out of the bar's edge.
  */
 class TaskbarItemAnimator : SimpleItemAnimator() {
     private val running = HashSet<RecyclerView.ViewHolder>()
@@ -24,8 +26,10 @@ class TaskbarItemAnimator : SimpleItemAnimator() {
     override fun animateRemove(holder: RecyclerView.ViewHolder): Boolean {
         val view = holder.itemView
         running.add(holder)
-        view.animate().alpha(0f).scaleX(SMALL).scaleY(SMALL).setDuration(REMOVE_MS)
-            .setStartDelay(0).setInterpolator(DecelerateInterpolator()).withEndAction {
+        // Sinks down into the bar while it fades, the way it rose when the app opened
+        view.animate().alpha(0f).scaleX(SMALL).scaleY(SMALL).translationY(drop(view))
+            .setDuration(REMOVE_MS).setStartDelay(0).setInterpolator(AccelerateInterpolator(SINK))
+            .withEndAction {
                 reset(view)
                 running.remove(holder)
                 dispatchRemoveFinished(holder)
@@ -39,7 +43,7 @@ class TaskbarItemAnimator : SimpleItemAnimator() {
         view.alpha = 0f
         view.scaleX = SMALL
         view.scaleY = SMALL
-        view.translationY = view.resources.displayMetrics.density * RISE_DP
+        view.translationY = drop(view)
         running.add(holder)
         // Starts once the closing icons are gone and the others have begun to move
         view.animate().alpha(1f).scaleX(1f).scaleY(1f).translationY(0f).setDuration(ADD_MS)
@@ -112,6 +116,9 @@ class TaskbarItemAnimator : SimpleItemAnimator() {
         if (running.isEmpty()) dispatchAnimationsFinished()
     }
 
+    /** How far below its place an icon starts when it opens and ends when it closes. */
+    private fun drop(view: View) = view.resources.displayMetrics.density * DROP_DP
+
     private fun reset(view: View) {
         view.alpha = 1f
         view.scaleX = 1f
@@ -122,10 +129,11 @@ class TaskbarItemAnimator : SimpleItemAnimator() {
 
     companion object {
         const val ADD_MS = 260L
-        const val REMOVE_MS = 160L
+        const val REMOVE_MS = 220L
         const val MOVE_MS = 220L
-        private const val SMALL = 0.5f
-        private const val RISE_DP = 10f
+        private const val SMALL = 0.8f
+        private const val DROP_DP = 24f
         private const val BOUNCE = 1.6f
+        private const val SINK = 1.5f
     }
 }
