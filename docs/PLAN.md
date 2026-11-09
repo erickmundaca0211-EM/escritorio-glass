@@ -80,6 +80,31 @@ sin errores; el texto se lee bien sobre fondos claros y oscuros.
 **Aceptación:** volumen y brillo cambian en vivo; Protección visual se activa y desactiva; la escala cambia
 y se restaura al salir del modo escritorio; se ve como `QuickSettings.png`.
 
+### Hecho el 2026-11-08 (rama `fase-4-ajustes`)
+- **Ajustes rápidos** (grupo Wi-Fi/volumen/batería de la barra): 3 × 3 botones, Brillo, Volumen, Escala del
+  escritorio y pie con batería, Ajustes de Escritorio Glass y Ajustes. Mantener presionado un botón abre su página
+  de ajustes.
+
+  | Botón | Sin Shizuku |
+  |---|---|
+  | Wi-Fi, Bluetooth, Modo avión, Transmitir | Abren el panel o la página del sistema (Android no deja cambiarlos). |
+  | Ahorro de energía | Abre los ajustes de batería (escribir `global low_power` no activa el ahorro de HyperOS). |
+  | Protección visual | Cambia directo: luz nocturna AOSP vía `PrivilegedActions` (spike d). |
+  | Horizontal fijo | Cambia directo (`lock_landscape`). |
+  | No molestar | Cambia directo: el lector de notificaciones da acceso a la política. |
+  | Linterna | Cambia directo (`CameraManager.setTorchMode`). |
+
+  Brillo 1–255 con "Modificar ajustes del sistema" (si falta, se pide). La escala usa `DesktopScale` y se aplica
+  al soltar el deslizador.
+- **Notificaciones y calendario** (hora y campana): tarjetas por app con título, texto y "Hace N min", tocar
+  abre, la X descarta, "Borrar todo" si hay algo que borrar; calendario mensual que empieza en domingo
+  (D L M X J V S), hoy en círculo de acento, flechas para cambiar de mes y la fecha abre el Calendario.
+- Se quitó el panel de dos pestañas de Smart Dock.
+- Probado en el POCO: Protección visual, No molestar y linterna se encienden y apagan; brillo, volumen y escala
+  cambian en vivo; una notificación de prueba aparece al instante y se descarta con la X.
+- Conocido: con la escala reducida la lista de notificaciones muestra pocas tarjetas (se desplaza); la barra
+  tapa el borde inferior de las hojas del sistema como el panel de Wi-Fi (se cierran con Atrás).
+
 ## Fase 5 — Ventanas
 - Abrir apps en ventana libre con tamaño inicial razonable para pantalla pequeña.
 - Redimensionar: manija de esquina y/o menú "Tamaño" (pequeño, mediano, grande, personalizado) con el contorno

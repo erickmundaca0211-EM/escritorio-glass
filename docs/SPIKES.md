@@ -108,6 +108,11 @@ por teclado, como prevé `CLAUDE.md`.
 
 **Conclusión:** el slider de brillo usa `Settings.System.SCREEN_BRIGHTNESS` en el rango **1–255**, lineal hasta 0.5.
 
+**Ahorro de energía (Fase 4, 2026-11-08):** `adb shell settings put global low_power 1` (equivale a
+`WRITE_SECURE_SETTINGS`) no activó el ahorro de HyperOS (`system/POWER_SAVE_MODE_OPEN` siguió en 0); además el
+teléfono estaba cargando por USB, y Android no deja activar el ahorro mientras carga. Se dejó en 0. El botón
+abre los ajustes de batería.
+
 ## g) Todo en horizontal (requisito agregado por Daniel)
 
 Estado de partida: bloqueo de rotación del sistema en vertical (`accelerometer_rotation=0`, `user_rotation=0`) y
