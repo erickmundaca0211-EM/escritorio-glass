@@ -1,5 +1,6 @@
 package cu.axel.smartdock.services
 
+import android.animation.ValueAnimator
 import android.Manifest
 import android.accessibilityservice.AccessibilityService
 import android.animation.Animator
@@ -141,6 +142,7 @@ import kotlin.math.max
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.content.res.ColorStateList
+import android.graphics.drawable.RotateDrawable
 import android.graphics.drawable.Drawable
 import cu.axel.smartdock.utils.DeepShortcutManager
 import cu.axel.smartdock.utils.DeviceUtils
@@ -302,6 +304,10 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     // Escritorio Glass taskbar (phase 2)
     private lateinit var searchBtn: ImageView
     private lateinit var trayOverflowBtn: ImageView
+
+    // Only the arrow turns (its level 0..10000 = 0..180 degrees); the button's highlight stays still
+    private var trayArrow: RotateDrawable? = null
+    private var trayArrowAnimator: ValueAnimator? = null
     private lateinit var dateBlock: LinearLayout
     private lateinit var dateMainTv: TextView
     private lateinit var nextEventTv: TextView
@@ -1988,8 +1994,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     private fun hideTrayOverflow() {
         val view = trayOverflowWindow ?: return
         trayOverflowWindow = null
-        trayOverflowBtn.animate().rotation(0f).setDuration(TRAY_ARROW_MS)
-            .setInterpolator(DecelerateInterpolator()).start()
+        turnTrayArrow(open = false)
         trayOverflowBtn.isActivated = false
         if (view.isAttachedToWindow) PanelAnimator.hide(view) {
             if (view.isAttachedToWindow) windowManager.removeView(view)
@@ -2053,8 +2058,18 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         PanelAnimator.show(view)
         trayOverflowWindow = view
         trayOverflowBtn.isActivated = true
-        trayOverflowBtn.animate().rotation(180f).setDuration(TRAY_ARROW_MS)
-            .setInterpolator(DecelerateInterpolator()).start()
+        turnTrayArrow(open = true)
+    }
+
+    private fun turnTrayArrow(open: Boolean) {
+        val arrow = trayArrow ?: return
+        trayArrowAnimator?.cancel()
+        trayArrowAnimator = ValueAnimator.ofInt(arrow.level, if (open) 10000 else 0).apply {
+            duration = TRAY_ARROW_MS
+            interpolator = DecelerateInterpolator()
+            addUpdateListener { arrow.level = it.animatedValue as Int }
+            start()
+        }
     }
 
     /** Left block: date, and the next calendar event when the optional permission is granted. */
@@ -2682,6 +2697,17 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         dateTv = dock!!.findViewById(R.id.date_btn)
         searchBtn = dock!!.findViewById(R.id.search_btn)
         trayOverflowBtn = dock!!.findViewById(R.id.tray_overflow_btn)
+        trayArrow = RotateDrawable().apply {
+            drawable = ContextCompat.getDrawable(context, R.drawable.ic_eg_chevron_up)
+            fromDegrees = 0f
+            toDegrees = 180f
+            isPivotXRelative = true
+            isPivotYRelative = true
+            pivotX = 0.5f
+            pivotY = 0.5f
+            level = 0
+        }
+        trayOverflowBtn.setImageDrawable(trayArrow)
         dateBlock = dock!!.findViewById(R.id.date_block)
         dateMainTv = dock!!.findViewById(R.id.date_main_tv)
         nextEventTv = dock!!.findViewById(R.id.next_event_tv)
