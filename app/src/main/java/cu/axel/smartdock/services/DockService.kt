@@ -103,6 +103,7 @@ import cu.axel.smartdock.utils.StartMenuUtils
 import cu.axel.smartdock.components.CalendarPanel
 import cu.axel.smartdock.components.NotificationCenter
 import cu.axel.smartdock.components.QuickSettingsPanel
+import cu.axel.smartdock.components.StatusIcons
 import cu.axel.smartdock.adapters.AppAdapter
 import cu.axel.smartdock.adapters.AppAdapter.OnAppClickListener
 import cu.axel.smartdock.adapters.AppShortcutAdapter
@@ -198,6 +199,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     private var calendarPanel: CalendarPanel? = null
     private var calendarPanelWindow: View? = null
     private var calendarPanelVisible = false
+    private var statusIcons: StatusIcons? = null
     private var wifiManagerWrapper: WifiManagerWrapper? = null
     private var bluetoothManagerWrapper: BluetoothManagerWrapper? = null
     private var activityManagerWrapper: ActivityManagerWrapper? = null
@@ -2422,13 +2424,9 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     }
 
     private fun updateBatteryBtn() {
-        if (sharedPreferences.getBoolean("show_battery_level$orientationValue", false)) {
-            batteryReceiver.showLevel = true
-            batteryBtn.text = "${batteryReceiver.level}%"
-        } else {
-            batteryReceiver.showLevel = false
-            batteryBtn.text = ""
-        }
+        // The percentage is drawn inside the battery icon (StatusIcons)
+        batteryReceiver.showLevel = false
+        batteryBtn.text = ""
     }
 
     /** "Ancladas" of the Start menu (pinned.lst, kept across restarts). */
@@ -2537,6 +2535,8 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
 
     override fun onDestroy() {
         //TODO: Unregister all receivers
+        statusIcons?.stop()
+        statusIcons = null
         sharedPreferences.unregisterOnSharedPreferenceChangeListener(this)
         if (::batteryReceiver.isInitialized)
             unregisterReceiver(batteryReceiver)
@@ -2639,6 +2639,9 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         wifiBtn = dock!!.findViewById(R.id.wifi_btn)
         volumeBtn = dock!!.findViewById(R.id.volume_btn)
         batteryBtn = dock!!.findViewById(R.id.battery_btn)
+        // Live Wi-Fi / mobile signal, volume and battery icons (rebuilt with the bar on a new scale)
+        statusIcons?.stop()
+        statusIcons = StatusIcons(context, wifiBtn, volumeBtn, batteryBtn).also { it.start() }
         dateTv = dock!!.findViewById(R.id.date_btn)
         searchBtn = dock!!.findViewById(R.id.search_btn)
         trayOverflowBtn = dock!!.findViewById(R.id.tray_overflow_btn)
@@ -2871,7 +2874,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     private fun updateWiFiStatus() {
         val enabled = wifiManager.isWifiEnabled
         quickSettings?.refresh()
-        wifiBtn.setImageResource(if (enabled) R.drawable.ic_wifi_on else R.drawable.ic_wifi_off)
+        // The taskbar icon follows the signal on its own (StatusIcons)
     }
 
     private fun updateBluetoothStatus() {

@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.os.BatteryManager
 import android.widget.TextView
-import androidx.appcompat.content.res.AppCompatResources
 import cu.axel.smartdock.utils.DeviceUtils
 import cu.axel.smartdock.utils.Utils
 
@@ -39,22 +38,11 @@ class BatteryStatsReceiver(
         update(lastState)
     }
 
+    /** [isPlugged] is true when the phone is NOT charging (name kept from upstream). */
     private fun update(isPlugged: Boolean) {
         lastState = isPlugged
-        if (isPlugged)
-            batteryBtn.setCompoundDrawablesWithIntrinsicBounds(
-                AppCompatResources.getDrawable(
-                    context,
-                    Utils.getBatteryDrawable(level, false)
-                ), null, null, null
-            )
-        else {
-            batteryBtn.setCompoundDrawablesWithIntrinsicBounds(
-                AppCompatResources.getDrawable(
-                    context,
-                    Utils.getBatteryDrawable(level, true)
-                ), null, null, null
-            )
+        // The taskbar battery icon is drawn by StatusIcons; this receiver only plays the sounds
+        if (!isPlugged) {
             if (level == 100) {
                 if (Utils.shouldPlayChargeComplete)
                     DeviceUtils.playEventSound(context, "charge_complete_sound")
