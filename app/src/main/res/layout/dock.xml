@@ -19,7 +19,7 @@
         android:layout_marginBottom="8dp"
         android:background="@drawable/round_rect"
         android:paddingStart="8dp"
-        android:paddingEnd="6dp"
+        android:paddingEnd="0dp"
         android:visibility="gone">
 
         <!-- Left: date and, with calendar permission, the next event -->
@@ -76,7 +76,7 @@
             android:id="@+id/system_tray"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_alignParentEnd="true"
+            android:layout_toStartOf="@+id/show_desktop_btn"
             android:layout_centerVertical="true"
             android:gravity="center_vertical"
             android:orientation="horizontal">
@@ -207,16 +207,18 @@
                     android:textStyle="bold"
                     android:visibility="gone" />
             </FrameLayout>
-
-            <!-- Show desktop: the thin sliver at the far end, as in the Windows 11 taskbar -->
-            <View
-                android:id="@+id/show_desktop_btn"
-                android:layout_width="12dp"
-                android:layout_height="40dp"
-                android:layout_marginStart="4dp"
-                android:background="@drawable/show_desktop_bg"
-                android:contentDescription="@string/taskbar_show_desktop" />
         </LinearLayout>
+
+        <!-- Show desktop: the whole far end of the bar, top to bottom and up to its rounded edge, as
+             in the Windows 11 taskbar (the bar has no end padding, so nothing clips its highlight) -->
+        <View
+            android:id="@+id/show_desktop_btn"
+            android:layout_width="24dp"
+            android:layout_height="match_parent"
+            android:layout_alignParentEnd="true"
+            android:layout_marginStart="4dp"
+            android:background="@drawable/show_desktop_bg"
+            android:contentDescription="@string/taskbar_show_desktop" />
 
         <!-- Centre: [back][home] Start, Search, Task view, then pinned and open apps -->
         <LinearLayout

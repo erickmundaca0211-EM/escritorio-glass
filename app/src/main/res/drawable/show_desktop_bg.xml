@@ -1,13 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Show desktop button at the far end of the taskbar: a thin line marks it, and it lights up like the
-    other taskbar buttons under the mouse or the finger.
+    Show desktop: the far end of the taskbar, as in Windows 11. A thin line marks where it starts; under
+    the mouse or the finger the whole end lights up, rounded like the end of the bar.
 -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@drawable/taskbar_button_bg" />
+    <item>
+        <selector
+            android:enterFadeDuration="120"
+            android:exitFadeDuration="180">
+            <item android:state_pressed="true">
+                <shape android:shape="rectangle">
+                    <corners
+                        android:bottomLeftRadius="0dp"
+                        android:bottomRightRadius="18dp"
+                        android:topLeftRadius="0dp"
+                        android:topRightRadius="18dp" />
+                    <solid android:color="@color/glass_surface_hover_strong" />
+                </shape>
+            </item>
+            <item android:state_hovered="true">
+                <shape android:shape="rectangle">
+                    <corners
+                        android:bottomLeftRadius="0dp"
+                        android:bottomRightRadius="18dp"
+                        android:topLeftRadius="0dp"
+                        android:topRightRadius="18dp" />
+                    <solid android:color="@color/glass_surface_hover" />
+                </shape>
+            </item>
+            <item>
+                <color android:color="@android:color/transparent" />
+            </item>
+        </selector>
+    </item>
     <item
         android:width="1dp"
-        android:height="20dp"
+        android:height="22dp"
         android:gravity="start|center_vertical">
         <shape android:shape="rectangle">
             <solid android:color="@color/glass_surface_hover_strong" />

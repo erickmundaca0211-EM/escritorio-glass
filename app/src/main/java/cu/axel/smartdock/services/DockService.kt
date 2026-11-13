@@ -1848,7 +1848,8 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         // Before the first layout the XML keeps the group centred; the layout listener calls us again
         if (barWidth > 0) {
             val left = if (dateBlock.isVisible) dateBlock.width else 0
-            val right = systemTray.width
+            // The tray and, at the very end, the show desktop button
+            val right = systemTray.width + (dock?.findViewById<View>(R.id.show_desktop_btn)?.width ?: 0)
             val gap = Utils.dpToPx(context, 8)
             val nav = navPanel.width
             val room = barWidth - left - right - 2 * gap - nav
