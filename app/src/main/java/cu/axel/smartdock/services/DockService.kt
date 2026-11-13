@@ -45,6 +45,7 @@ import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
 import android.os.Process
+import android.os.SystemClock
 import android.provider.Settings
 import android.service.notification.StatusBarNotification
 import android.util.Log
@@ -131,6 +132,7 @@ import cu.axel.smartdock.models.App
 import cu.axel.smartdock.models.AppTask
 import cu.axel.smartdock.models.DockApp
 import cu.axel.smartdock.models.WINDOWING_MODE_FREEFORM
+import cu.axel.smartdock.models.WINDOWING_MODE_FULLSCREEN
 import cu.axel.smartdock.preferences.NAV_LONG_ACTIONS
 import cu.axel.smartdock.receivers.BatteryStatsReceiver
 import cu.axel.smartdock.receivers.SoundEventsReceiver
@@ -239,6 +241,9 @@ private const val TASKBAR_AUTOHIDE_DELAY_MS = 1000L // wait before hiding over a
 private const val TASKBAR_HOVER_HIDE_DELAY_MS = 1000 // after the mouse leaves the bar
 private const val FULLSCREEN_CHECK_DELAY_MS = 300L // let window changes settle
 
+/** How long the hidden taskbar waits while a full-screen window chosen in the switcher comes up. */
+private const val SWITCH_KEEP_HIDDEN_MS = 900L
+
 class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, OnTouchListener,
     OnAppClickListener, OnDockAppClickListener, OnNotificationClickListener {
 
@@ -345,6 +350,10 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     private var homePackages = emptySet<String>()
     private val autoHideHandler = Handler(Looper.getMainLooper())
     private val fullscreenCheck = Runnable { checkFullscreenApp() }
+
+    /** Until then the hidden taskbar stays hidden: a full-screen window chosen in the switcher comes up. */
+    private var keepTaskbarHiddenUntil = 0L
+    private val afterSwitchCheck = Runnable { checkFullscreenApp() }
     private val autoHideRunnable = Runnable { autoHideTaskbar() }
     private var dock: HoverInterceptorLayout? = null
     private lateinit var bluetoothManager: BluetoothManager
@@ -1070,6 +1079,9 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
                 autoHideHandler.postDelayed(autoHideRunnable, TASKBAR_AUTOHIDE_DELAY_MS)
             }
         } else {
+            // A full-screen window chosen in the switcher is on its way: in between there is no
+            // full-screen app in front for a moment, and the taskbar must not pop up for it
+            if (autoHidden && SystemClock.uptimeMillis() < keepTaskbarHiddenUntil) return
             autoHideHandler.removeCallbacks(autoHideRunnable)
             autoHideSuppressed = false
             if (autoHidden) pinDock()
@@ -2742,6 +2754,15 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     /** Brings [task] to the front, like a click on its taskbar button but never minimizing it. */
     private fun switchToTask(task: AppTask) {
         Log.d("EG", "switcher: to task ${task.id}")
+        // From a full-screen app to another one: the hidden taskbar stays hidden while it comes up,
+        // and is looked at again once it is there (in case it isn't full screen after all)
+        if (autoHidden && task.windowingMode == WINDOWING_MODE_FULLSCREEN &&
+            !PrivilegedActions.restoresFloating(task.id)
+        ) {
+            keepTaskbarHiddenUntil = SystemClock.uptimeMillis() + SWITCH_KEEP_HIDDEN_MS
+            autoHideHandler.removeCallbacks(afterSwitchCheck)
+            autoHideHandler.postDelayed(afterSwitchCheck, SWITCH_KEEP_HIDDEN_MS)
+        }
         if (task.id == -1) launchApp(null, task.packageName)
         else if (!PrivilegedActions.restoreTask(context, task.id))
             activityManager.moveTaskToFront(task.id, 0)

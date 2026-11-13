@@ -194,6 +194,9 @@ object PrivilegedActions {
     /** Place and size of each floating window we minimized, to bring it back the same (task id key). */
     private val minimizedFloating = HashMap<Int, Rect>()
 
+    /** Whether bringing [taskId] back makes it a floating window again (it was one when minimized). */
+    fun restoresFloating(taskId: Int) = minimizedFloating.containsKey(taskId)
+
     fun minimizeTask(context: Context, taskId: Int): Boolean {
         if (!isAllowed(context, Action.MINIMIZE_TASK)) return false
         val (task, token, organizer) = listedTask(taskId) ?: return false
