@@ -26,15 +26,17 @@ import cu.axel.smartdock.R
 import cu.axel.smartdock.models.AppTask
 import cu.axel.smartdock.utils.Utils
 import kotlin.math.abs
+import kotlin.math.hypot
 import kotlin.math.sign
+import kotlin.math.tan
 
 /**
  * Window switcher, like Alt+Tab in Windows 11 but with icons instead of thumbnails: the open windows
  * in a row, most recently used first, and the name of the selected one below. The keyboard moves the
  * selection (DockService picks it when Alt is let go); a click on an icon picks that window at once.
- * When windows can be closed (Shizuku): an icon thrown up or down out of the row closes its window,
- * like swiping away a recent app; the mouse also gets a × on the icon under it; Supr closes the
- * selected one and "Close all" closes them all at once.
+ * When windows can be closed (Shizuku): an icon thrown up or down out of the row, straight or on a
+ * diagonal, closes its window, like swiping away a recent app; the mouse also gets a × on the icon
+ * under it; Supr closes the selected one and "Close all" closes them all at once.
  */
 class TaskSwitcher(
     private val context: Context,
@@ -82,10 +84,16 @@ class TaskSwitcher(
     private var downX = 0f
     private var downY = 0f
     private var velocity: VelocityTracker? = null
+
+    /** The press went sideways: it scrolls the row instead of throwing the icon. */
+    private var scrolling = false
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
     private val throwDistance = Utils.dpToPx(context, THROW_DP).toFloat()
     private val throwVelocity = Utils.dpToPx(context, THROW_VELOCITY_DP).toFloat()
     private val fadeDistance = Utils.dpToPx(context, FADE_DP).toFloat()
+
+    /** How far sideways a throw may go for each step up or down (the cone's half-angle, THROW_CONE_DEG). */
+    private val coneSlope = tan(Math.toRadians(THROW_CONE_DEG)).toFloat()
 
     /**
      * The pointer left an icon. A click also makes it leave for a moment (it comes back on release), and
@@ -109,10 +117,11 @@ class TaskSwitcher(
             setSize(Utils.dpToPx(context, GAP_DP), size)
         }
         row.showDividers = LinearLayout.SHOW_DIVIDER_MIDDLE
-        // A thrown icon may leave the row up or down (the card does not clip it, see the layout);
-        // sideways the row still ends at its edges when it scrolls
+        // A thrown icon may leave the row up, down or on a diagonal (the card does not clip it, see
+        // the layout); only a row that scrolls still ends at its edges sideways
         scroll.addOnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
-            v.clipBounds = Rect(0, -THROW_ROOM_PX, v.width, v.height + THROW_ROOM_PX)
+            v.clipBounds = if (row.width > v.width) Rect(0, -THROW_ROOM_PX, v.width, v.height + THROW_ROOM_PX)
+            else null
         }
         tasks.forEach { task ->
             val item = makeItem(task, icon(task), iconSize)
@@ -166,6 +175,8 @@ class TaskSwitcher(
             )
         }
         val item = Item(task, button, closeButton)
+        // Raised over its neighbours while thrown on a diagonal, without a shadow
+        button.outlineProvider = null
         button.setOnClickListener { host.switchTo(task) }
         if (closeButton != null)
             ViewCompat.addAccessibilityAction(button, context.getString(R.string.taskbar_close_window)) { _, _ ->
@@ -208,7 +219,11 @@ class TaskSwitcher(
                         closeButton.isPressed = true
                         return@setOnTouchListener true
                     }
-                    if (canClose) startTracking(event)
+                    if (canClose) {
+                        startTracking(event)
+                        // The row waits to scroll until the press shows its way (drag)
+                        button.parent.requestDisallowInterceptTouchEvent(true)
+                    }
                 }
 
                 MotionEvent.ACTION_MOVE -> {
@@ -232,8 +247,8 @@ class TaskSwitcher(
                         return@setOnTouchListener true
                     }
                     stopTracking()
-                    // Let go off the icon: nothing opens
-                    if (event.x < 0 || event.y < 0 || event.x > button.width || event.y > button.height)
+                    // Let go off the icon, or after going sideways: nothing opens
+                    if (scrolling || event.x < 0 || event.y < 0 || event.x > button.width || event.y > button.height)
                         releaseLabel()
                 }
 
@@ -260,11 +275,13 @@ class TaskSwitcher(
                 event.y >= closeButton.top && event.y <= closeButton.bottom
     }
 
-    // ---- Throwing an icon out of the row (a finger's swipe up or down, like scrolling) closes it
+    // ---- Throwing an icon out of the row (a finger's swipe up or down, like scrolling, straight or
+    // on a diagonal: anywhere in a cone of THROW_CONE_DEG either side) closes it
 
     private fun startTracking(event: MotionEvent) {
         downX = event.rawX
         downY = event.rawY
+        scrolling = false
         velocity?.recycle()
         velocity = VelocityTracker.obtain()
         track(event)
@@ -284,40 +301,61 @@ class TaskSwitcher(
         velocity = null
     }
 
+    /** Whether a move by ([dx], [dy]) goes up or down within the throw cone, not sideways. */
+    private fun inCone(dx: Float, dy: Float) = dy != 0f && abs(dx) <= abs(dy) * coneSlope
+
     /**
-     * Follows a press on an icon: once it goes up or down rather than sideways (sideways scrolls the
-     * row), the icon follows the finger and fades. True while it is being thrown.
+     * Follows a press on an icon: once it goes up or down, straight or on a diagonal, the icon follows
+     * the finger and fades; flatter, the press is handed to the row, which scrolls. True while it is
+     * being thrown.
      */
     private fun drag(item: Item, event: MotionEvent): Boolean {
+        if (scrolling) return false
         track(event)
+        val dx = event.rawX - downX
         val dy = event.rawY - downY
+        val distance = hypot(dx, dy)
         if (thrown !== item) {
-            if (abs(dy) <= touchSlop || abs(dy) <= abs(event.rawX - downX)) return false
-            thrown = item
-            item.view.parent.requestDisallowInterceptTouchEvent(true)
-            // The press no longer opens the window
+            if (distance <= touchSlop) return false
+            // Either way the press no longer opens the window
             val cancel = MotionEvent.obtain(event)
             cancel.action = MotionEvent.ACTION_CANCEL
             item.view.onTouchEvent(cancel)
             cancel.recycle()
+            if (!inCone(dx, dy)) {
+                // Sideways: the row takes the press over on the next move
+                scrolling = true
+                item.view.parent.requestDisallowInterceptTouchEvent(false)
+                return true
+            }
+            thrown = item
+            item.view.translationZ = THROWN_Z
         }
-        val offset = dy - sign(dy) * touchSlop
-        item.view.translationY = offset
-        item.view.alpha = (1f - abs(offset) / fadeDistance).coerceAtLeast(MIN_ALPHA)
+        // The icon follows the finger from where the press became a throw
+        val follow = ((distance - touchSlop) / distance).coerceAtLeast(0f)
+        item.view.translationX = dx * follow
+        item.view.translationY = dy * follow
+        item.view.alpha = (1f - distance * follow / fadeDistance).coerceAtLeast(MIN_ALPHA)
         return true
     }
 
-    /** The thrown icon was let go: far or fast enough its window closes, otherwise it goes back. */
+    /**
+     * The thrown icon was let go: far enough, or fast enough, up or down within the cone, its window
+     * closes; otherwise it goes back.
+     */
     private fun letGo(item: Item, event: MotionEvent) {
         track(event)
         thrown = null
         val tracker = velocity
         tracker?.computeCurrentVelocity(1000)
-        val speed = tracker?.yVelocity ?: 0f
+        val speedX = tracker?.xVelocity ?: 0f
+        val speedY = tracker?.yVelocity ?: 0f
         stopTracking()
-        val offset = item.view.translationY
-        val away = abs(offset) >= throwDistance || (abs(speed) >= throwVelocity && sign(speed) == sign(offset))
-        if (away) closeWindow(item, sign(offset))
+        val x = item.view.translationX
+        val y = item.view.translationY
+        val far = hypot(x, y) >= throwDistance && inCone(x, y)
+        val flung = hypot(speedX, speedY) >= throwVelocity && inCone(speedX, speedY) && sign(speedY) == sign(y)
+        if (far || flung) closeWindow(item, x, y)
         else {
             backInPlace(item)
             releaseLabel()
@@ -325,7 +363,8 @@ class TaskSwitcher(
     }
 
     private fun backInPlace(item: Item) {
-        item.view.animate().translationY(0f).alpha(1f).setDuration(BACK_ANIM_MS).start()
+        item.view.animate().translationX(0f).translationY(0f).alpha(1f).setDuration(BACK_ANIM_MS)
+            .withEndAction { item.view.translationZ = 0f }.start()
     }
 
     /** A press ended without opening nor closing anything: the name follows the pointer again. */
@@ -342,9 +381,9 @@ class TaskSwitcher(
 
     /**
      * Closes [item]'s window and takes it out of the row; the next one takes its place. A thrown icon
-     * keeps going the way it was thrown ([direction] up -1, down 1); otherwise it shrinks away.
+     * keeps going the way it was thrown (along [throwX], [throwY]); otherwise it shrinks away.
      */
-    private fun closeWindow(item: Item, direction: Float = 0f) {
+    private fun closeWindow(item: Item, throwX: Float = 0f, throwY: Float = 0f) {
         labelLocked = false
         val index = items.indexOf(item)
         if (index < 0) return
@@ -357,7 +396,9 @@ class TaskSwitcher(
         if (hovered === item) hovered = null
         item.view.isEnabled = false
         val out = item.view.animate().alpha(0f).setDuration(CLOSE_ANIM_MS)
-        if (direction != 0f) out.translationY(item.view.translationY + direction * fadeDistance)
+        val thrownBy = hypot(throwX, throwY)
+        if (thrownBy > 0f) out.translationX(item.view.translationX + throwX / thrownBy * fadeDistance)
+            .translationY(item.view.translationY + throwY / thrownBy * fadeDistance)
         else out.scaleX(CLOSE_SCALE).scaleY(CLOSE_SCALE)
         out.withEndAction {
             row.removeView(item.view)
@@ -421,6 +462,15 @@ class TaskSwitcher(
         /** A thrown icon closes its window past this distance, or let go this fast (per second). */
         const val THROW_DP = 32
         const val THROW_VELOCITY_DP = 800
+
+        /**
+         * How far from straight up or down (degrees, either side) a press still throws the icon: a
+         * fan of diagonals. Flatter than that, it scrolls the row.
+         */
+        const val THROW_CONE_DEG = 60.0
+
+        /** A thrown icon is drawn over its neighbours (it can cross them on a diagonal). */
+        const val THROWN_Z = 1f
 
         /** Over this distance a thrown icon fades out (down to MIN_ALPHA while still held). */
         const val FADE_DP = 48
