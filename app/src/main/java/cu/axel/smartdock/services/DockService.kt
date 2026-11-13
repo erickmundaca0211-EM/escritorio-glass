@@ -272,6 +272,9 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     private var desktopShownTasks: List<Int> = emptyList()
     private var leftoverWindowsShown = false
 
+    /** Small menus over the taskbar (an app's windows, its right-click menu): a press on the bar closes them. */
+    private val barPopups = ArrayList<View>()
+
     /** The Windows key was used together with another key: going up it must not open Start. */
     private var metaChord = false
 
@@ -709,6 +712,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
                 windowManager.removeView(view)
             }
             windowManager.addView(view, layoutParams)
+            trackBarPopup(view)
             PanelAnimator.show(view)
         } else launchApp(getDefaultLaunchMode(app.packageName), app.packageName)
         if (getDefaultLaunchMode(app.packageName) == "fullscreen") {
@@ -1474,6 +1478,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             onAction(position)
         }
         windowManager.addView(view, layoutParams)
+        trackBarPopup(view)
         PanelAnimator.show(view)
     }
 
@@ -1543,6 +1548,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             if (view.isAttachedToWindow) windowManager.removeView(view)
         }
         windowManager.addView(view, layoutParams)
+        trackBarPopup(view)
         PanelAnimator.show(view)
     }
 
@@ -1710,6 +1716,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             }
         }
         windowManager.addView(view, layoutParams)
+        trackBarPopup(view)
         PanelAnimator.show(view)
     }
 
@@ -2567,6 +2574,40 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         }
     }
 
+    /**
+     * A press on the taskbar at ([x], [y]) on screen closes the open panels and menus, like a click
+     * anywhere else, except the one whose own button is pressed: its click closes it (a toggle). Their
+     * own outside touch can't: they let the bar through for that toggle, and the edge strip over the
+     * bar's lower half takes the touch before them.
+     */
+    private fun closePanelsForBarPress(x: Float, y: Float) {
+        fun on(vararg buttons: View) = buttons.any { it.isShown && isOnView(it, x, y) }
+        if (appMenuVisible && !on(appsBtn, searchBtn)) hideAppMenu()
+        if (quickSettingsPanelVisible && !on(statusArea)) hideQuickSettingsPanel()
+        if (notificationCenterVisible && !on(notificationsArea, notificationBtn)) hideNotificationCenter()
+        if (calendarPanelVisible && !on(clockArea)) hideCalendarPanel()
+        if (taskSwitcher != null && !on(recentBtn)) hideTaskSwitcher()
+        if (trayOverflowWindow != null && !on(trayOverflowBtn)) hideTrayOverflow()
+        barPopups.forEach { if (it.isAttachedToWindow) windowManager.removeView(it) }
+        barPopups.clear()
+    }
+
+    /** [popup] was just shown over the taskbar: a press on the bar closes it (the closed ones are dropped). */
+    private fun trackBarPopup(popup: View) {
+        barPopups.removeAll { !it.isAttachedToWindow }
+        barPopups += popup
+    }
+
+    /** Whether ([x], [y]) on screen falls on [view] (placed by its parent: the tray arrow may be turned). */
+    private fun isOnView(view: View, x: Float, y: Float): Boolean {
+        val parent = view.parent as? View ?: return false
+        val place = IntArray(2)
+        parent.getLocationOnScreen(place)
+        val left = place[0] + view.left
+        val top = place[1] + view.top
+        return x >= left && x < left + view.width && y >= top && y < top + view.height
+    }
+
     /** Closes the flyouts on the right (quick settings, notifications, calendar) that are open. */
     private fun hideFlyouts() {
         hideTrayOverflow()
@@ -3419,6 +3460,8 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
                 if (autoHidden) hideDock(TASKBAR_HOVER_HIDE_DELAY_MS, auto = true) else hideDock(500)
             }
         }
+        // A press anywhere on the bar closes what is open above it, as a click anywhere else does
+        dock!!.onBarPress = { event -> closePanelsForBarPress(event.rawX, event.rawY) }
         gestureDetector = GestureDetector(context, object : OnSwipeListener() {
             override fun onSwipe(direction: Direction): Boolean {
                 if (direction == Direction.DOWN) {

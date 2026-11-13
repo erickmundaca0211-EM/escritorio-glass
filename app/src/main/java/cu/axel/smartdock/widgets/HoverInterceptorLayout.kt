@@ -13,7 +13,15 @@ import android.widget.LinearLayout
 class HoverInterceptorLayout(context: Context, attrs: AttributeSet?) : LinearLayout(context, attrs) {
     /** Called with MotionEvent.ACTION_HOVER_ENTER or ACTION_HOVER_EXIT for the window as a whole. */
     var onBarHover: ((Int) -> Unit)? = null
+
+    /** Called with each press on the bar (also the ones the edge strip hands over), before its buttons get it. */
+    var onBarPress: ((MotionEvent) -> Unit)? = null
     private var inside = false
+
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        if (event.actionMasked == MotionEvent.ACTION_DOWN) onBarPress?.invoke(event)
+        return super.dispatchTouchEvent(event)
+    }
 
     /** The bar was hidden under the pointer: its next move over the window counts as entering again. */
     fun resetHover() {
