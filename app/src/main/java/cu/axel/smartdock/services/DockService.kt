@@ -2619,6 +2619,13 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             if (!down) toggleTaskSwitcher()
             return true
         }
+        // Windows+Tab, Task view in Windows: Android would open the system's recent apps. Here it opens
+        // the switcher until a window is chosen (arrows and Enter, or a click); again or Esc closes it
+        if (event.keyCode == KeyEvent.KEYCODE_TAB && event.isMetaPressed) {
+            metaChord = true // the Windows key going up must not open Start
+            if (down && event.repeatCount == 0) toggleTaskSwitcher()
+            return true
+        }
         if (event.keyCode == KeyEvent.KEYCODE_TAB && event.isAltPressed && !event.isCtrlPressed &&
             !event.isMetaPressed
         ) {
