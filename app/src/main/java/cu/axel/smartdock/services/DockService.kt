@@ -28,6 +28,7 @@ import android.content.pm.PackageManager
 import android.graphics.Rect
 import android.content.pm.ShortcutInfo
 import android.content.res.Configuration
+import android.content.res.Resources
 import android.graphics.PorterDuff
 import android.hardware.display.DisplayManager
 import android.hardware.usb.UsbManager
@@ -185,8 +186,14 @@ private const val EDGE_SWIPE_DP = 40
 /** The edge strip covers at least the system's gesture zone (HyperOS's GestureStubHome is 38 px). */
 private const val EDGE_STRIP_MIN_PX = 40
 
-/** A swipe up that starts this close to the right end shows the desktop instead of the switcher. */
-private const val EDGE_CORNER_DP = 64
+/** Height of the edge strip in real millimetres: 40 px (2.3 mm) was too thin for a finger. */
+private const val EDGE_STRIP_MM = 4.3f
+
+/** A swipe up that starts this close (real millimetres) to the right end shows the desktop. */
+private const val EDGE_CORNER_MM = 18.2f
+
+/** Real millimetres to pixels, with the screen's physical density (not the app scale). */
+private fun mmToPx(mm: Float, dpi: Float) = (mm * dpi / 25.4f + 0.5f).toInt()
 
 // Escritorio Glass Start menu (docs/DISENO.md, "Menú Inicio")
 private const val START_MENU_WIDTH_DP = 560
@@ -2753,20 +2760,20 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         val strip = View(context)
         // As tall as the system's own gesture zone, or a swipe that starts a little above the edge
         // still reaches the system (HyperOS then opens its recent apps, drawn sideways in landscape)
+        val physical = Resources.getSystem().displayMetrics
         val layoutParams = Utils.makeWindowParams(
             WindowManager.LayoutParams.MATCH_PARENT,
-            maxOf(Utils.dpToPx(context, TASKBAR_MARGIN_BOTTOM_DP), EDGE_STRIP_MIN_PX),
+            maxOf(mmToPx(EDGE_STRIP_MM, physical.ydpi), EDGE_STRIP_MIN_PX),
             context, preferSecondaryDisplay, accessibilityWindow = true
         )
         layoutParams.gravity = Gravity.BOTTOM
         // Down to the very edge, over the navigation (gesture) area
         layoutParams.fitInsetsTypes = 0
         val distance = Utils.dpToPx(context, EDGE_SWIPE_DP)
-        val corner = Utils.dpToPx(context, EDGE_CORNER_DP)
+        val corner = mmToPx(EDGE_CORNER_MM, physical.xdpi)
         var startX = 0f
         var startY = 0f
         var swiped = false
-        var press: MotionEvent? = null
         strip.setOnTouchListener { view, event ->
             // The mouse never swipes: its clicks belong to the taskbar under the strip
             if (event.isFromSource(InputDevice.SOURCE_MOUSE)) {
@@ -2778,30 +2785,24 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
                     startX = event.x
                     startY = event.rawY
                     swiped = false
-                    press?.recycle()
-                    press = MotionEvent.obtain(event)
+                    // The strip covers the lower part of the taskbar: the bar gets the touch as it
+                    // happens (presses, long presses), until it turns into a swipe up
+                    forwardToTaskbar(view, event)
                 }
 
-                MotionEvent.ACTION_MOVE -> if (!swiped && startY - event.rawY >= distance) {
-                    swiped = true
-                    // From the bottom-right corner, under the show desktop button: show the desktop
-                    if (startX >= view.width - corner) toggleShowDesktop() else onEdgeSwipe()
+                MotionEvent.ACTION_MOVE -> if (!swiped) {
+                    if (startY - event.rawY >= distance) {
+                        swiped = true
+                        val cancel = MotionEvent.obtain(event)
+                        cancel.action = MotionEvent.ACTION_CANCEL
+                        forwardToTaskbar(view, cancel)
+                        cancel.recycle()
+                        // From the bottom-right corner, under the show desktop button: show the desktop
+                        if (startX >= view.width - corner) toggleShowDesktop() else onEdgeSwipe()
+                    } else forwardToTaskbar(view, event)
                 }
 
-                MotionEvent.ACTION_UP -> {
-                    // A plain tap on the strip was meant for the bottom edge of the taskbar under it
-                    if (!swiped) press?.let { down ->
-                        forwardToTaskbar(view, down)
-                        forwardToTaskbar(view, event)
-                    }
-                    press?.recycle()
-                    press = null
-                }
-
-                MotionEvent.ACTION_CANCEL -> {
-                    press?.recycle()
-                    press = null
-                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> if (!swiped) forwardToTaskbar(view, event)
             }
             true
         }
