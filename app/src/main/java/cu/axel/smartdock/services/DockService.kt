@@ -107,6 +107,7 @@ import cu.axel.smartdock.components.NotificationCenter
 import cu.axel.smartdock.components.QuickSettingsPanel
 import cu.axel.smartdock.components.ShizukuSetupWindow
 import cu.axel.smartdock.components.StatusIcons
+import cu.axel.smartdock.components.TaskSwitcher
 import cu.axel.smartdock.adapters.AppAdapter
 import cu.axel.smartdock.adapters.AppAdapter.OnAppClickListener
 import cu.axel.smartdock.adapters.AppShortcutAdapter
@@ -194,6 +195,9 @@ private const val TRAY_ARROW_MS = 220L
 /** After closing a window, when to read the open windows again. */
 private const val CLOSE_REFRESH_MS = 350L
 
+/** Most windows the switcher (Alt+Tab) shows. */
+private const val MAX_SWITCHER_TASKS = 30
+
 /** Shortest pause between two readings of the open windows. */
 private const val TASKBAR_UPDATE_MS = 500L
 
@@ -225,6 +229,10 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     private var notificationCenterVisible = false
     private var calendarPanel: CalendarPanel? = null
     private var calendarPanelWindow: View? = null
+    private var taskSwitcher: TaskSwitcher? = null
+
+    /** The switcher was opened with Alt+Tab: letting go of Alt switches to the selected window. */
+    private var taskSwitcherByKeyboard = false
     private var calendarPanelVisible = false
     private var statusIcons: StatusIcons? = null
     private var trayOverflowWindow: View? = null
@@ -742,6 +750,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
 
     //Handle keyboard shortcuts
     override fun onKeyEvent(event: KeyEvent): Boolean {
+        if (handleTaskSwitcherKey(event)) return true
         // Esc closes the Start menu (keys are only used as shortcuts, never stored)
         if (appMenuVisible && event.keyCode == KeyEvent.KEYCODE_ESCAPE) {
             if (event.action == KeyEvent.ACTION_UP) hideAppMenu()
@@ -2490,6 +2499,156 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         }
     }
 
+    // ---- Window switcher: Alt+Tab and the taskbar's Task view button
+
+    /**
+     * Alt+Tab like Windows: it opens the switcher on the previous window (Alt+Shift+Tab on the
+     * oldest), each Tab moves on (Shift+Tab or the arrows move back) and letting go of Alt switches to
+     * the selected window; Esc closes it. Keys are only used as shortcuts, never stored. True when the
+     * switcher used the key.
+     */
+    private fun handleTaskSwitcherKey(event: KeyEvent): Boolean {
+        val down = event.action == KeyEvent.ACTION_DOWN
+        if (event.keyCode == KeyEvent.KEYCODE_TAB && event.isAltPressed && !event.isCtrlPressed &&
+            !event.isMetaPressed
+        ) {
+            if (down) {
+                val switcher = taskSwitcher
+                if (switcher == null) showTaskSwitcher(byKeyboard = true, backwards = event.isShiftPressed)
+                else switcher.move(if (event.isShiftPressed) -1 else 1)
+            }
+            return true
+        }
+        val switcher = taskSwitcher ?: return false
+        when (event.keyCode) {
+            // The app still gets Alt going up (it saw it go down); the switch happens here
+            KeyEvent.KEYCODE_ALT_LEFT, KeyEvent.KEYCODE_ALT_RIGHT ->
+                if (!down && taskSwitcherByKeyboard) pickTaskSwitcherSelection()
+
+            KeyEvent.KEYCODE_ESCAPE -> {
+                if (!down) hideTaskSwitcher()
+                return true
+            }
+
+            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                if (down) switcher.move(if (event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT) -1 else 1)
+                return true
+            }
+
+            KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER, KeyEvent.KEYCODE_SPACE -> {
+                if (!down) pickTaskSwitcherSelection()
+                return true
+            }
+        }
+        return false
+    }
+
+    private fun toggleTaskSwitcher() {
+        if (taskSwitcher != null) hideTaskSwitcher() else showTaskSwitcher(byKeyboard = false)
+    }
+
+    /** The open windows, most recently used first, with the one in front at the start. */
+    private fun switcherTasks(): List<AppTask> {
+        val shizuku = PrivilegedActions.isAllowed(context, PrivilegedActions.Action.LIST_TASKS)
+        // Without Shizuku, like the taskbar: the apps used since desktop mode started
+        if (!systemApp && !shizuku)
+            return AppUtils.getRecentTasks(context, MAX_SWITCHER_TASKS, since = Utils.startupTime)
+        val infos = if (systemApp) activityManager.getRunningTasks(MAX_SWITCHER_TASKS)
+        else PrivilegedActions.runningTasks(context, MAX_SWITCHER_TASKS)
+        val tasks = AppUtils.getRunningTasks(infos, packageManager)
+        // A see-through leftover (a closed warning screen) can be listed above the window in front
+        if (infos.isNotEmpty()) {
+            val front = AppUtils.frontTask(infos).taskId
+            val index = tasks.indexOfFirst { it.id == front }
+            if (index > 0) tasks.add(0, tasks.removeAt(index))
+        }
+        return tasks
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private fun showTaskSwitcher(byKeyboard: Boolean, backwards: Boolean = false) {
+        val tasks = switcherTasks()
+        // Alt+Tab with no window does nothing; the button still says that nothing is open
+        if (byKeyboard && tasks.isEmpty()) return
+        hideFlyouts()
+        if (appMenuVisible) hideAppMenu()
+        val switcher = TaskSwitcher(
+            ContextThemeWrapper(context, R.style.AppTheme_Dock), tasks,
+            { task -> iconPackUtils?.getAppThemedIcon(task.packageName) ?: task.icon },
+            taskSwitcherHost
+        )
+        val layoutParams = Utils.makeWindowParams(
+            WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT,
+            context, preferSecondaryDisplay
+        )
+        layoutParams.gravity = Gravity.CENTER
+        layoutParams.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
+        ColorUtils.applyMainColor(context, sharedPreferences, switcher.card, GlassSurface.PANEL)
+        // A touch outside closes it, except on the taskbar: its Task view button toggles it
+        switcher.view.setOnTouchListener { view, event ->
+            if (event.action == MotionEvent.ACTION_OUTSIDE && !isTouchOnTaskbar(view, event))
+                hideTaskSwitcher()
+            false
+        }
+        windowManager.addView(switcher.view, layoutParams)
+        PanelAnimator.show(switcher.view, listOf(switcher.card))
+        // Alt+Tab starts on the previous window, so a quick one goes back and forth between the last two
+        switcher.select(
+            when {
+                !byKeyboard -> 0
+                backwards -> tasks.size - 1
+                else -> 1
+            }
+        )
+        taskSwitcher = switcher
+        taskSwitcherByKeyboard = byKeyboard
+        Log.d("EG", "switcher: ${tasks.size} windows (keyboard: $byKeyboard)")
+    }
+
+    /**
+     * Whether a touch outside [window] fell on the taskbar. Android only gives its place when it
+     * landed on one of our own windows; on another app it reads (0, 0), above the bar.
+     */
+    private fun isTouchOnTaskbar(window: View, event: MotionEvent): Boolean {
+        if (!::dockLayout.isInitialized || !dockLayout.isShown) return false
+        val windowLocation = IntArray(2)
+        val barLocation = IntArray(2)
+        window.getLocationOnScreen(windowLocation)
+        dockLayout.getLocationOnScreen(barLocation)
+        return windowLocation[1] + event.y >= barLocation[1]
+    }
+
+    private fun hideTaskSwitcher() {
+        val switcher = taskSwitcher ?: return
+        taskSwitcher = null
+        val window = switcher.view
+        if (window.isAttachedToWindow) PanelAnimator.hide(window, listOf(switcher.card)) {
+            if (window.isAttachedToWindow) windowManager.removeViewImmediate(window)
+        }
+    }
+
+    private fun pickTaskSwitcherSelection() {
+        val task = taskSwitcher?.selectedTask
+        hideTaskSwitcher()
+        if (task != null) switchToTask(task)
+    }
+
+    private val taskSwitcherHost = object : TaskSwitcher.Host {
+        override fun switchTo(task: AppTask) {
+            hideTaskSwitcher()
+            switchToTask(task)
+        }
+    }
+
+    /** Brings [task] to the front, like a click on its taskbar button but never minimizing it. */
+    private fun switchToTask(task: AppTask) {
+        Log.d("EG", "switcher: to task ${task.id}")
+        if (task.id == -1) launchApp(null, task.packageName)
+        else if (!PrivilegedActions.restoreTask(context, task.id))
+            activityManager.moveTaskToFront(task.id, 0)
+    }
+
     /** Current notifications for the center: only shown, never stored or logged (CLAUDE.md). */
     private fun updateNotificationCenter() {
         val center = notificationCenter ?: return
@@ -2732,6 +2891,8 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         } catch (_: IllegalArgumentException) {
         }
         shizukuWindow?.view?.let { if (it.isAttachedToWindow) windowManager.removeViewImmediate(it) }
+        taskSwitcher?.view?.let { if (it.isAttachedToWindow) windowManager.removeViewImmediate(it) }
+        taskSwitcher = null
         shizukuWindow = null
         statusIcons?.stop()
         statusIcons = null
@@ -2911,7 +3072,8 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             performNavAction("enable_nav_home")
             true
         }
-        recentBtn.setOnClickListener { performGlobalAction(GLOBAL_ACTION_RECENTS) }
+        // Task view opens the window switcher, the same one as Alt+Tab
+        recentBtn.setOnClickListener { toggleTaskSwitcher() }
         recentBtn.setOnLongClickListener {
             performNavAction("enable_nav_recents")
             true

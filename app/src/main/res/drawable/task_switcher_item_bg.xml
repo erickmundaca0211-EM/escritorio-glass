@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    A window in the switcher (Alt+Tab): the selected one gets a light fill and a white outline, like the
+    selection frame of Windows 11; the others light up softly under the mouse.
+-->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="#33FFFFFF">
+    <item android:id="@android:id/mask">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/glass_radius_button" />
+            <solid android:color="#FFFFFFFF" />
+        </shape>
+    </item>
+    <item>
+        <selector
+            android:enterFadeDuration="90"
+            android:exitFadeDuration="120">
+            <item android:state_selected="true">
+                <shape android:shape="rectangle">
+                    <corners android:radius="@dimen/glass_radius_button" />
+                    <solid android:color="@color/glass_surface_hover_strong" />
+                    <stroke
+                        android:width="2dp"
+                        android:color="@color/glass_text_secondary" />
+                </shape>
+            </item>
+            <item android:state_hovered="true">
+                <shape android:shape="rectangle">
+                    <corners android:radius="@dimen/glass_radius_button" />
+                    <solid android:color="@color/glass_surface_hover_soft" />
+                </shape>
+            </item>
+            <item>
+                <color android:color="@android:color/transparent" />
+            </item>
+        </selector>
+    </item>
+</ripple>

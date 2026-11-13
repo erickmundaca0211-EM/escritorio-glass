@@ -75,6 +75,7 @@ MainActivity (ajustes y permisos) ── SharedPreferences ──▶ DockService
 | Ajustes rápidos | `showQuickSettingsPanel` `:1650-1847` | Panel con pestañas (ajustes / notificaciones) | `FLAG_NOT_FOCUSABLE \| FLAG_WATCH_OUTSIDE_TOUCH` |
 | Menú de apagado | `showPowerMenu` `:1878-1919` | Centrado | `FLAG_NOT_FOCUSABLE \| FLAG_WATCH_OUTSIDE_TOUCH` |
 | Notificación emergente | `components/NotificationLayout.kt:211` | Esquina | — |
+| Selector de ventanas (Alt+Tab y Vista de tareas, Fase 6) | `components/TaskSwitcher.kt`, `showTaskSwitcher` | Centrado, `WRAP_CONTENT` | `FLAG_NOT_FOCUSABLE \| FLAG_WATCH_OUTSIDE_TOUCH` |
 | Toast propio | `showToast` `:535` | Encima del dock | — |
 | Diálogos del servicio | `dialogs/DockDialog.kt:23` | Diálogo Material | `window.setType(TYPE_APPLICATION_OVERLAY)` |
 
