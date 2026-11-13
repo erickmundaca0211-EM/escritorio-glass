@@ -531,6 +531,9 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             addDataScheme("package")
         }, ContextCompat.RECEIVER_NOT_EXPORTED)
         shizukuHandler.postDelayed({ maybeShowShizukuSetup() }, SHIZUKU_PROMPT_DELAY_MS)
+        ContextCompat.registerReceiver(
+            this, unlockReceiver, IntentFilter(Intent.ACTION_USER_PRESENT), ContextCompat.RECEIVER_NOT_EXPORTED
+        )
 
         //Show the dock
         if (sharedPreferences.getBoolean("pin_dock", true))
@@ -2207,6 +2210,20 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         shizukuHandler.post { onShizukuChanged() }
     }
 
+    /**
+     * The bar is kept off the lock screen (showDock). If it was shown while the phone was locked, its
+     * window stays hidden after unlocking unless it is brought back here.
+     */
+    private val unlockReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val bar = dock ?: return
+            if (bar.isVisible || keyguardManager.isKeyguardLocked) return
+            if (isPinned || sharedPreferences.getString("activation_method", "swipe") == "swipe")
+                bar.isVisible = true
+            checkFullscreenApp()
+        }
+    }
+
     /** Shizuku was installed while the user was setting it up: show how to start it. */
     private val packageAddedReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -2708,6 +2725,10 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         taskbarRefreshHandler.removeCallbacksAndMessages(null)
         try {
             unregisterReceiver(packageAddedReceiver)
+        } catch (_: IllegalArgumentException) {
+        }
+        try {
+            unregisterReceiver(unlockReceiver)
         } catch (_: IllegalArgumentException) {
         }
         shizukuWindow?.view?.let { if (it.isAttachedToWindow) windowManager.removeViewImmediate(it) }

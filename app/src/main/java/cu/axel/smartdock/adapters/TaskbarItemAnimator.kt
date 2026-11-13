@@ -67,8 +67,9 @@ class TaskbarItemAnimator : SimpleItemAnimator() {
             dispatchMoveFinished(holder)
             return false
         }
-        view.translationX = -dx.toFloat()
-        view.translationY = -dy.toFloat()
+        // Already laid out at its new place: start it where it was drawn before, then glide to zero
+        view.translationX = dx.toFloat()
+        view.translationY = dy.toFloat()
         running.add(holder)
         view.animate().translationX(0f).translationY(0f).setDuration(MOVE_MS)
             .setStartDelay(0).setInterpolator(DecelerateInterpolator(1.5f)).withEndAction {
@@ -83,9 +84,12 @@ class TaskbarItemAnimator : SimpleItemAnimator() {
         oldHolder: RecyclerView.ViewHolder, newHolder: RecyclerView.ViewHolder?,
         fromLeft: Int, fromTop: Int, toLeft: Int, toTop: Int
     ): Boolean {
-        // Change animations are off: just say it is done
+        // The same icon redrawn (it became active or not, the focus moves when a window closes) can
+        // also change place: it must slide there like the others, or it jumps
+        if (newHolder == null || newHolder === oldHolder)
+            return animateMove(oldHolder, fromLeft, fromTop, toLeft, toTop)
         dispatchChangeFinished(oldHolder, true)
-        if (newHolder != null && newHolder !== oldHolder) dispatchChangeFinished(newHolder, false)
+        dispatchChangeFinished(newHolder, false)
         return false
     }
 
