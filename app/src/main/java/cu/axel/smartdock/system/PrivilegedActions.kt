@@ -6,11 +6,13 @@ import android.app.TaskInfo
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Rect
+import android.os.Binder
 import android.provider.Settings
 import android.util.DisplayMetrics
 import android.util.Log
 import android.view.Display
 import cu.axel.smartdock.wrappers.ActivityManagerWrapper
+import cu.axel.smartdock.wrappers.StatusBarWrapper
 import cu.axel.smartdock.wrappers.WindowOrganizerWrapper
 
 /**
@@ -57,7 +59,15 @@ object PrivilegedActions {
          * Bring one window back to the front from its taskbar button, at once (the app's own request
          * can be held back for seconds after a minimize). Only a task id the system listed (Shizuku).
          */
-        RESTORE_TASK
+        RESTORE_TASK,
+
+        /**
+         * Keep the system's pull-down shade and its quick settings closed while desktop mode runs:
+         * the taskbar's notification center and quick settings take their place. It is tied to a
+         * token of this process, so the system lifts it by itself if the app dies; desktop mode
+         * lifts it when it stops (Shizuku).
+         */
+        BLOCK_SYSTEM_SHADE
     }
 
     /** Most windows the taskbar asks for at once. */
@@ -81,8 +91,8 @@ object PrivilegedActions {
             context.checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS) ==
                     PackageManager.PERMISSION_GRANTED
 
-        Action.LIST_TASKS, Action.CLOSE_TASK, Action.MINIMIZE_TASK, Action.RESTORE_TASK ->
-            ShizukuState.isUsable()
+        Action.LIST_TASKS, Action.CLOSE_TASK, Action.MINIMIZE_TASK, Action.RESTORE_TASK,
+        Action.BLOCK_SYSTEM_SHADE -> ShizukuState.isUsable()
     }
 
     // ---- Shizuku: the activity manager through Shizuku's binder, only for the actions above
@@ -113,11 +123,52 @@ object PrivilegedActions {
         }
     }
 
+    private var statusBar: StatusBarWrapper? = null
+
+    @Synchronized
+    private fun shizukuStatusBar(): StatusBarWrapper? {
+        statusBar?.let { if (it.isAlive()) return it }
+        return try {
+            StatusBarWrapper().also { statusBar = it }
+        } catch (e: Exception) {
+            Log.w(TAG, "privileged: Shizuku status bar unavailable", e)
+            null
+        }
+    }
+
     /** Shizuku stopped: drop its binders (new ones are made when it starts again). */
     @Synchronized
     fun forgetShizuku() {
         activityManager = null
         windowOrganizer = null
+        statusBar = null
+    }
+
+    // StatusBarManager flags (hidden constants): no pulling down the shade, no quick settings
+    private const val DISABLE_EXPAND = 0x00010000
+    private const val DISABLE2_QUICK_SETTINGS = 1
+
+    /** Names our block to the status bar service; it lives and dies with this process. */
+    private val shadeToken = Binder()
+
+    /** Whether the system shade is blocked by us (only Shizuku can lift it again). */
+    @Volatile
+    var systemShadeBlocked = false
+        private set
+
+    fun setSystemShadeBlocked(context: Context, blocked: Boolean): Boolean {
+        if (!isAllowed(context, Action.BLOCK_SYSTEM_SHADE)) return false
+        val bar = shizukuStatusBar() ?: return false
+        return try {
+            if (blocked) bar.disable(DISABLE_EXPAND, DISABLE2_QUICK_SETTINGS, shadeToken, context.packageName)
+            else bar.disable(0, 0, shadeToken, context.packageName)
+            systemShadeBlocked = blocked
+            Log.d(TAG, "privileged: system shade ${if (blocked) "blocked" else "released"}")
+            true
+        } catch (e: Exception) {
+            Log.w(TAG, "privileged: changing the system shade failed", e)
+            false
+        }
     }
 
     fun runningTasks(context: Context, max: Int): List<ActivityManager.RunningTaskInfo> {

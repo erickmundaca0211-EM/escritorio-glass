@@ -91,6 +91,12 @@
 
         <SwitchPreferenceCompat
             android:defaultValue="true"
+            android:key="block_system_shade"
+            android:summary="@string/block_system_shade_summary"
+            android:title="@string/block_system_shade_title" />
+
+        <SwitchPreferenceCompat
+            android:defaultValue="true"
             android:key="shizuku_reminder"
             android:summary="@string/shizuku_reminder_summary"
             android:title="@string/shizuku_reminder_title" />

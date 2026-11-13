@@ -37,6 +37,8 @@
     <string name="app_scale_needs_permission">Necesita el permiso de configuración segura (Permisos, Opcional)</string>
     <string name="autohide_fullscreen_title">Ocultar la barra con apps a pantalla completa</string>
     <string name="autohide_fullscreen_summary">Se esconde al segundo; lleva el mouse al borde de abajo para que vuelva</string>
+    <string name="block_system_shade_title">Bloquear la cortina del sistema</string>
+    <string name="block_system_shade_summary">En modo escritorio no se abren la cortina ni los ajustes rápidos del sistema; usa los de la barra (necesita Shizuku)</string>
     <string name="start_search_hint">Buscar apps</string>
     <string name="start_pinned">Ancladas</string>
     <string name="start_pinned_empty">Ancla apps aquí: mantén presionada una app o haz clic derecho y elige \"Anclar a Inicio\"</string>

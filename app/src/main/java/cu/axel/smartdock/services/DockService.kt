@@ -174,6 +174,7 @@ const val DOCK_SERVICE_ACTION = "dock_service_action"
 private const val TASKBAR_MARGIN_BOTTOM_DP = 8
 private const val TASKBAR_ITEM_WIDTH_DP = 46 // 44 dp button + 2 dp gap, as in the mockup
 private const val KEY_AUTOHIDE_FULLSCREEN = "autohide_fullscreen"
+private const val KEY_BLOCK_SYSTEM_SHADE = "block_system_shade"
 
 // Escritorio Glass Start menu (docs/DISENO.md, "Menú Inicio")
 private const val START_MENU_WIDTH_DP = 560
@@ -548,6 +549,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             pinDock()
         else
             Toast.makeText(context, R.string.start_message, Toast.LENGTH_LONG).show()
+        updateSystemShadeBlock()
 
     }
 
@@ -1630,6 +1632,10 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             checkFullscreenApp()
             return
         }
+        if (preference == KEY_BLOCK_SYSTEM_SHADE) {
+            updateSystemShadeBlock()
+            return
+        }
         if (preference == DesktopScale.KEY_APP_SCALE) {
             // The new density reaches onConfigurationChanged, which rebuilds the bar at its own scale
             DesktopScale.apply(this, sharedPreferences)
@@ -2255,12 +2261,23 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
                 Toast.makeText(this, R.string.shizuku_ready, Toast.LENGTH_SHORT).show()
             shizukuSetupActive = false
             hideShizukuSetup()
+            updateSystemShadeBlock()
             updateRunningTasks(force = true)
         } else {
             if (shizukuSetupActive) showShizukuSetup(status)
             updateRunningTasks(force = true)
         }
         quickSettings?.refresh()
+    }
+
+    /**
+     * Blocks the system's shade and quick settings while desktop mode runs, or gives them back, as
+     * the setting says. Needs Shizuku; without it nothing changes.
+     */
+    private fun updateSystemShadeBlock() {
+        val wanted = sharedPreferences.getBoolean(KEY_BLOCK_SYSTEM_SHADE, true)
+        if (wanted != PrivilegedActions.systemShadeBlocked)
+            PrivilegedActions.setSystemShadeBlocked(this, wanted)
     }
 
     private fun showShizukuSetup(status: ShizukuState.Status = ShizukuState.status(this)) {
@@ -2876,6 +2893,10 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     }
 
     override fun onDestroy() {
+        // The system shade comes back with desktop mode. Without Shizuku it can't be lifted from here,
+        // but the block dies with this process: it ends once everything else is restored
+        val shadeStuck = PrivilegedActions.systemShadeBlocked &&
+                !PrivilegedActions.setSystemShadeBlocked(this, false)
         //TODO: Unregister all receivers
         Shizuku.removeBinderReceivedListener(shizukuReceived)
         Shizuku.removeBinderDeadListener(shizukuDead)
@@ -2920,6 +2941,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         } catch (_: IllegalArgumentException) {
         }
         super.onDestroy()
+        if (shadeStuck) Process.killProcess(Process.myPid())
     }
 
     fun performNavAction(key: String) {

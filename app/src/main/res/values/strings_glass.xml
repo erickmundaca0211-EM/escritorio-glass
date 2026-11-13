@@ -38,6 +38,8 @@
     <string name="app_scale_needs_permission">Needs the secure settings permission (Permissions, Optional)</string>
     <string name="autohide_fullscreen_title">Hide the taskbar over full-screen apps</string>
     <string name="autohide_fullscreen_summary">It slides away after 1 second; move the mouse to the bottom edge to bring it back</string>
+    <string name="block_system_shade_title">Block the system shade</string>
+    <string name="block_system_shade_summary">In desktop mode the system\'s pull-down shade and quick settings stay closed; use the taskbar\'s instead (needs Shizuku)</string>
     <string name="start_search_hint">Search apps</string>
     <string name="start_pinned">Pinned</string>
     <string name="start_pinned_empty">Pin apps here: long-press or right-click an app and choose \"Pin to Start\"</string>
