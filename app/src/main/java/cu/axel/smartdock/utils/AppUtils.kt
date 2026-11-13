@@ -2,6 +2,7 @@ package cu.axel.smartdock.utils
 
 import android.app.ActivityManager
 import android.app.ActivityOptions
+import android.app.TaskInfo
 import android.app.Notification
 import android.app.usage.UsageStatsManager
 import android.content.Context
@@ -169,13 +170,31 @@ object AppUtils {
         return resolveInfo!!.activityInfo.packageName
     }
 
+    // Hidden TaskInfo fields (read only): which window has the focus, and whether it is see-through
+    private val taskFocused = try { TaskInfo::class.java.getField("isFocused") } catch (_: Exception) { null }
+    private val taskTransparent =
+        try { TaskInfo::class.java.getField("isTopActivityTransparent") } catch (_: Exception) { null }
+
+    private fun flag(field: java.lang.reflect.Field?, task: TaskInfo) =
+        try { field?.getBoolean(task) } catch (_: Exception) { null }
+
+    /**
+     * The window the user is working in: the one the system gives the focus to. Without that, the top
+     * visible window that is not see-through (a finished warning screen can stay listed first while
+     * showing nothing), and only then the first one listed.
+     */
+    fun frontTask(tasks: List<ActivityManager.RunningTaskInfo>): ActivityManager.RunningTaskInfo =
+        tasks.firstOrNull { flag(taskFocused, it) == true }
+            ?: tasks.firstOrNull { it.isVisible && flag(taskTransparent, it) != true }
+            ?: tasks.first()
+
     /** [tasksInfo] comes from the system (system app) or from PrivilegedActions (Shizuku). */
     fun getRunningTasks(
         tasksInfo: List<ActivityManager.RunningTaskInfo>,
         packageManager: PackageManager
     ): ArrayList<AppTask> {
         if (!tasksInfo.isNullOrEmpty())
-            currentApp = tasksInfo.first().baseActivity!!.packageName
+            frontTask(tasksInfo).baseActivity?.packageName?.let { currentApp = it }
         val getWindowingModeMethod =
             ActivityManager.RunningTaskInfo::class.java.getMethod("getWindowingMode")
         val appTasks = ArrayList<AppTask>()

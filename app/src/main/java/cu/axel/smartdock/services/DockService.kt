@@ -194,6 +194,9 @@ private const val TRAY_ARROW_MS = 220L
 /** After closing a window, when to read the open windows again. */
 private const val CLOSE_REFRESH_MS = 350L
 
+/** Windows read to find the one in front when a taskbar button is clicked. */
+private const val MAX_LISTED_TASKS = 20
+
 /** When the shrinking taskbar list checks whether the closing icon is still animating. */
 private const val SHRINK_CHECK_MS = 60L
 
@@ -598,7 +601,13 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             val taskId = tasks[0].id
             if (taskId == -1)
                 launchApp(null, app.packageName)
-            else
+            // Like Windows: a click on the app in front minimizes it, the next one brings it back
+            else if (isTaskInFront(taskId, app.packageName) &&
+                PrivilegedActions.minimizeTask(context, taskId)
+            ) {
+                dockHandler.postDelayed({ updateRunningTasks(force = true) }, CLOSE_REFRESH_MS)
+                return
+            } else if (!PrivilegedActions.restoreTask(context, taskId))
                 activityManager.moveTaskToFront(taskId, 0)
         } else if (tasks.size > 1) {
             val view = LayoutInflater.from(context).inflate(R.layout.task_list, null)
@@ -639,6 +648,14 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         }
     }
 
+    /** Whether [taskId] is the window the user works in right now (asked at the click, not cached). */
+    private fun isTaskInFront(taskId: Int, packageName: String): Boolean {
+        val listed = PrivilegedActions.runningTasks(context, MAX_LISTED_TASKS)
+        val front = if (listed.isEmpty()) null else AppUtils.frontTask(listed).taskId
+        Log.d("EG", "taskbar: click on task $taskId, task in front: $front")
+        return if (front != null) front == taskId else packageName == AppUtils.currentApp
+    }
+
     override fun onDockAppLongClicked(app: DockApp, view: View) {
         showDockAppContextMenu(app, view)
     }
@@ -670,10 +687,11 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             return
 
         if (event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
-            if (event.windowChanges.and(AccessibilityEvent.WINDOWS_CHANGE_REMOVED) == AccessibilityEvent.WINDOWS_CHANGE_REMOVED ||
-                event.windowChanges.and(
-                    AccessibilityEvent.WINDOWS_CHANGE_ADDED
-                ) == AccessibilityEvent.WINDOWS_CHANGE_ADDED
+            // A window opened or closed, or another one came to the front (the active button follows
+            // the focus, and a click on it minimizes the right app)
+            if (event.windowChanges and (AccessibilityEvent.WINDOWS_CHANGE_ADDED or
+                        AccessibilityEvent.WINDOWS_CHANGE_REMOVED or AccessibilityEvent.WINDOWS_CHANGE_FOCUSED or
+                        AccessibilityEvent.WINDOWS_CHANGE_ACTIVE) != 0
             )
                 updateRunningTasks()
         } else if (sharedPreferences.getBoolean(
@@ -1706,6 +1724,9 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     /** Left offset of the centre group inside the bar (-1 = not placed yet). */
     private var taskbarGroupStart = -1
 
+    /** Packages in the order their taskbar buttons were shown last time (see updateRunningTasks). */
+    private var taskbarOrder: List<String> = emptyList()
+
     /** The open apps changed while the bar was hidden: apply it once the bar is back on screen. */
     private var taskbarStale = false
 
@@ -1799,6 +1820,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             pinnedApps.forEach { pinnedApp ->
                 apps.add(DockApp(pinnedApp.name, pinnedApp.packageName, pinnedApp.icon))
             }
+        val pinnedCount = apps.size
 
         //TODO: We can eliminate another for
         //TODO: Don't do anything if tasks has not changed
@@ -1827,6 +1849,13 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
                     apps.add(DockApp(task))
             }
         }
+
+        // Like Windows, every button stays where it appeared: bringing an app to the front does not
+        // move it, and a newly opened app goes to the end (the system lists them by last use)
+        val opened = ArrayList(apps.subList(pinnedCount, apps.size))
+        opened.sortBy { app -> taskbarOrder.indexOf(app.packageName).let { if (it == -1) Int.MAX_VALUE else it } }
+        opened.forEachIndexed { i, app -> apps[pinnedCount + i] = app }
+        taskbarOrder = apps.map { it.packageName }
 
         runningAppsCount = apps.size
         fitRunningApps(apps.size)

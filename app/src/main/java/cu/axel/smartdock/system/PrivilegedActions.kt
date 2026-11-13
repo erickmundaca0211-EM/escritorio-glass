@@ -2,13 +2,16 @@ package cu.axel.smartdock.system
 
 import android.Manifest
 import android.app.ActivityManager
+import android.app.TaskInfo
 import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.Rect
 import android.provider.Settings
 import android.util.DisplayMetrics
 import android.util.Log
 import android.view.Display
 import cu.axel.smartdock.wrappers.ActivityManagerWrapper
+import cu.axel.smartdock.wrappers.WindowOrganizerWrapper
 
 /**
  * The single entry point for privileged actions in Escritorio Glass (CLAUDE.md, "Reglas de seguridad").
@@ -41,11 +44,28 @@ object PrivilegedActions {
          * Close one window, like swiping it away in recents ("Cerrar ventana"). Only from the user's tap
          * on the taskbar menu, and only a task id the system itself listed (Shizuku).
          */
-        CLOSE_TASK
+        CLOSE_TASK,
+
+        /**
+         * Send one window behind all the others, like minimizing it in Windows. Only from the user's
+         * click on its taskbar button, only a task id the system itself listed; the next click brings
+         * it back to the front (Shizuku).
+         */
+        MINIMIZE_TASK,
+
+        /**
+         * Bring one window back to the front from its taskbar button, at once (the app's own request
+         * can be held back for seconds after a minimize). Only a task id the system listed (Shizuku).
+         */
+        RESTORE_TASK
     }
 
     /** Most windows the taskbar asks for at once. */
     private const val MAX_TASKS = 100
+
+    // WindowConfiguration windowing modes (hidden constants)
+    private const val WINDOWING_MODE_FULLSCREEN = 1
+    private const val WINDOWING_MODE_FREEFORM = 5
 
     /** Settings.Secure key of Android's Night Light (hidden constant NIGHT_DISPLAY_ACTIVATED). */
     private const val NIGHT_DISPLAY_ACTIVATED = "night_display_activated"
@@ -61,7 +81,8 @@ object PrivilegedActions {
             context.checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS) ==
                     PackageManager.PERMISSION_GRANTED
 
-        Action.LIST_TASKS, Action.CLOSE_TASK -> ShizukuState.isUsable()
+        Action.LIST_TASKS, Action.CLOSE_TASK, Action.MINIMIZE_TASK, Action.RESTORE_TASK ->
+            ShizukuState.isUsable()
     }
 
     // ---- Shizuku: the activity manager through Shizuku's binder, only for the actions above
@@ -79,10 +100,24 @@ object PrivilegedActions {
         }
     }
 
-    /** Shizuku stopped: drop its binder (a new one is made when it starts again). */
+    private var windowOrganizer: WindowOrganizerWrapper? = null
+
+    @Synchronized
+    private fun shizukuWindowOrganizer(): WindowOrganizerWrapper? {
+        windowOrganizer?.let { if (it.isAlive()) return it }
+        return try {
+            WindowOrganizerWrapper().also { windowOrganizer = it }
+        } catch (e: Exception) {
+            Log.w(TAG, "privileged: Shizuku window organizer unavailable", e)
+            null
+        }
+    }
+
+    /** Shizuku stopped: drop its binders (new ones are made when it starts again). */
     @Synchronized
     fun forgetShizuku() {
         activityManager = null
+        windowOrganizer = null
     }
 
     fun runningTasks(context: Context, max: Int): List<ActivityManager.RunningTaskInfo> {
@@ -103,6 +138,75 @@ object PrivilegedActions {
             Log.w(TAG, "privileged: closing task $taskId failed", e)
             false
         }
+    }
+
+    /** Place and size of each floating window we minimized, to bring it back the same (task id key). */
+    private val minimizedFloating = HashMap<Int, Rect>()
+
+    fun minimizeTask(context: Context, taskId: Int): Boolean {
+        if (!isAllowed(context, Action.MINIMIZE_TASK)) return false
+        val (task, token, organizer) = listedTask(taskId) ?: return false
+        return try {
+            val floating = windowingMode(task) == WINDOWING_MODE_FREEFORM
+            val bounds = if (floating) taskBounds(task) else null
+            organizer.sendToBack(token, fromFloating = bounds != null)
+            if (bounds != null) minimizedFloating[taskId] = bounds else minimizedFloating.remove(taskId)
+            Log.d(TAG, "privileged: task $taskId minimized (floating: ${bounds != null})")
+            true
+        } catch (e: Exception) {
+            Log.w(TAG, "privileged: minimizing task $taskId failed", e)
+            false
+        }
+    }
+
+    fun restoreTask(context: Context, taskId: Int): Boolean {
+        if (!isAllowed(context, Action.RESTORE_TASK)) return false
+        val (task, token, organizer) = listedTask(taskId) ?: return false
+        return try {
+            // Floating again only if it is still the full-screen window we made of it
+            val bounds = minimizedFloating.remove(taskId)
+                ?.takeIf { windowingMode(task) == WINDOWING_MODE_FULLSCREEN }
+            organizer.bringToFront(taskId, token, bounds)
+            Log.d(TAG, "privileged: task $taskId restored (floating: ${bounds != null})")
+            true
+        } catch (e: Exception) {
+            Log.w(TAG, "privileged: restoring task $taskId failed", e)
+            false
+        }
+    }
+
+    /**
+     * The task the system itself lists with [taskId], with its window token (never built by us) and
+     * the organizer that moves it.
+     */
+    private fun listedTask(taskId: Int): Triple<ActivityManager.RunningTaskInfo, Any, WindowOrganizerWrapper>? {
+        if (taskId <= 0) return null
+        return try {
+            val task = shizukuActivityManager()?.getRunningTasks(MAX_TASKS)
+                ?.firstOrNull { it.taskId == taskId } ?: return null
+            val token = ActivityManager.RunningTaskInfo::class.java.getField("token").get(task) ?: return null
+            val organizer = shizukuWindowOrganizer() ?: return null
+            Triple(task, token, organizer)
+        } catch (e: Exception) {
+            Log.w(TAG, "privileged: task $taskId not reachable", e)
+            null
+        }
+    }
+
+    private fun windowingMode(task: ActivityManager.RunningTaskInfo): Int = try {
+        ActivityManager.RunningTaskInfo::class.java.getMethod("getWindowingMode").invoke(task) as Int
+    } catch (_: Exception) {
+        -1
+    }
+
+    /** The window's place on screen (TaskInfo.configuration.windowConfiguration, hidden). */
+    private fun taskBounds(task: ActivityManager.RunningTaskInfo): Rect? = try {
+        val configuration = TaskInfo::class.java.getField("configuration").get(task)!!
+        val windowConfiguration = configuration.javaClass.getField("windowConfiguration").get(configuration)!!
+        (windowConfiguration.javaClass.getMethod("getBounds").invoke(windowConfiguration) as Rect)
+            .takeUnless { it.isEmpty }?.let { Rect(it) }
+    } catch (_: Exception) {
+        null
     }
 
     fun isNightDisplayOn(context: Context): Boolean = try {
