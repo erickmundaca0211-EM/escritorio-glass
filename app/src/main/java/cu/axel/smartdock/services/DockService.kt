@@ -194,6 +194,9 @@ private const val TRAY_ARROW_MS = 220L
 /** After closing a window, when to read the open windows again. */
 private const val CLOSE_REFRESH_MS = 350L
 
+/** Shortest pause between two readings of the open windows. */
+private const val TASKBAR_UPDATE_MS = 500L
+
 /** Windows read to find the one in front when a taskbar button is clicked. */
 private const val MAX_LISTED_TASKS = 20
 
@@ -230,8 +233,9 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     /** The user is going through the Shizuku setup: show each next step as it becomes possible. */
     private var shizukuSetupActive = false
 
-    // Own handler: the bar clears dockHandler's queue every time it shows or hides
+    // Own handlers: the bar clears dockHandler's queue every time it shows or hides
     private val shizukuHandler = Handler(Looper.getMainLooper())
+    private val taskbarRefreshHandler = Handler(Looper.getMainLooper())
     private var orientationValue: String = ""
     private var orientation = -1
     private var densityDpi = 0
@@ -1036,11 +1040,10 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         val anim = AnimationUtils.loadAnimation(context, R.anim.slide_up)
         dockLayout.visibility = View.VISIBLE
         dockLayout.startAnimation(anim)
-        // Once the bar has slid in, show what changed meanwhile so it animates in sight
-        dockHandler.postDelayed({
-            taskbarStale = false
-            updateRunningTasks(force = true)
-        }, anim.duration)
+        // Once the bar has slid in, show what changed meanwhile so it animates in sight. On its own
+        // handler: a hide or show right after would clear dockHandler and the bar would stay outdated
+        taskbarRefreshHandler.removeCallbacks(staleTaskbarRefresh)
+        taskbarRefreshHandler.postDelayed(staleTaskbarRefresh, anim.duration)
     }
 
     fun pinDock() {
@@ -1724,6 +1727,12 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     /** Left offset of the centre group inside the bar (-1 = not placed yet). */
     private var taskbarGroupStart = -1
 
+    private val staleTaskbarRefresh = Runnable {
+        taskbarStale = false
+        updateRunningTasks(force = true)
+    }
+    private val trailingTaskbarUpdate = Runnable { updateRunningTasks() }
+
     /** Packages in the order their taskbar buttons were shown last time (see updateRunningTasks). */
     private var taskbarOrder: List<String> = emptyList()
 
@@ -1811,8 +1820,14 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             return
         }
         val now = System.currentTimeMillis()
-        if (now - lastUpdate < 500 && !force)
+        if (now - lastUpdate < TASKBAR_UPDATE_MS && !force) {
+            // Too soon after the last one, but not lost: the last change of a burst (the app that
+            // ends up in front) is the one that counts, so it is read once the pause is over
+            taskbarRefreshHandler.removeCallbacks(trailingTaskbarUpdate)
+            taskbarRefreshHandler.postDelayed(trailingTaskbarUpdate, TASKBAR_UPDATE_MS - (now - lastUpdate))
             return
+        }
+        taskbarRefreshHandler.removeCallbacks(trailingTaskbarUpdate)
         lastUpdate = now
 
         val apps = ArrayList<DockApp>()
@@ -2690,6 +2705,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         Shizuku.removeBinderDeadListener(shizukuDead)
         Shizuku.removeRequestPermissionResultListener(shizukuPermission)
         shizukuHandler.removeCallbacksAndMessages(null)
+        taskbarRefreshHandler.removeCallbacksAndMessages(null)
         try {
             unregisterReceiver(packageAddedReceiver)
         } catch (_: IllegalArgumentException) {
