@@ -129,10 +129,12 @@ Se usa a través de `DeviceUtils.putSecureSetting`, `putGlobalSetting` y `putSys
 ### Shizuku
 - `DeviceUtils.hasShizukuPermission()` = `Shizuku.pingBinder() && checkSelfPermission()`. El permiso se pide desde
   `MainActivity.requestShizukuPermission` (`:184`).
-- `wrappers/`: `ActivityManagerWrapper` (tareas, `resizeTask`, `removeTask`), `WifiManagerWrapper` (encender o
-  apagar Wi-Fi, escanear) y `BluetoothManagerWrapper`. Usan `ShizukuBinderWrapper` +
-  `SystemServiceHelper.getSystemService(...)` sobre las interfaces AIDL ocultas de `app/src/main/aidl/android/`.
-  **No ejecutan comandos de shell**: llaman a los servicios del sistema por binder.
+- `wrappers/`: `ActivityManagerWrapper` (tareas, `resizeTask`, `removeTask`), `WindowOrganizerWrapper` (manda una
+  ventana detrás del escritorio o la trae al frente; solo lo usa `PrivilegedActions`), `WifiManagerWrapper` (encender
+  o apagar Wi-Fi, escanear) y `BluetoothManagerWrapper`. Usan `ShizukuBinderWrapper` +
+  `SystemServiceHelper.getSystemService(...)` sobre las interfaces AIDL ocultas de `app/src/main/aidl/android/`
+  (`WindowOrganizerWrapper` llega a las suyas por reflexión: `IActivityTaskManager`, `IWindowOrganizerController` y
+  `WindowContainerTransaction`). **No ejecutan comandos de shell**: llaman a los servicios del sistema por binder.
 
 ### Root (`su`)
 `DeviceUtils.runAsRoot(command)` (`:60`) abre `su` y le escribe el comando como texto. Se usa para:
@@ -148,10 +150,20 @@ llamadas fallan sin efecto.
 
 ### Clase central de Escritorio Glass (desde la Fase 5)
 `system/PrivilegedActions.kt` es el único lugar donde Escritorio Glass ejecuta acciones privilegiadas nuevas. La
-lista blanca es el enum `Action` (por ahora: forzar y quitar la densidad de pantalla con `WRITE_SECURE_SETTINGS`,
-validando el rango 50–200 % de la densidad física). `system/DesktopScale.kt` la usa para la "Escala de las apps" y
-guarda la densidad previa para restaurarla. Las llamadas heredadas de Smart Dock de arriba siguen donde estaban;
-pasarlas a esta clase queda pendiente.
+lista blanca es el enum `Action`:
+
+| Acción | Qué hace | Requiere |
+|---|---|---|
+| `SET_DISPLAY_DENSITY`, `CLEAR_DISPLAY_DENSITY` | Fuerza o quita la densidad de pantalla, validando el rango 50–200 % de la física. `system/DesktopScale.kt` la usa para la "Escala de las apps" y guarda la densidad previa para restaurarla. | `WRITE_SECURE_SETTINGS` |
+| `SET_NIGHT_DISPLAY` | Enciende o apaga la luz nocturna de Android (`night_display_activated`): botón "Protección visual". | `WRITE_SECURE_SETTINGS` |
+| `LIST_TASKS` | Lee las ventanas abiertas para la barra (solo app e id). | Shizuku |
+| `CLOSE_TASK` | "Cerrar ventana" del menú de la barra, como deslizarla en recientes. | Shizuku |
+| `MINIMIZE_TASK` | Clic en el botón de la app que está al frente: manda su ventana detrás del escritorio (`WindowContainerTransaction.reorder`). HyperOS deja las ventanas flotantes siempre encima, así que antes pasan a pantalla completa y se guardan sus límites. | Shizuku |
+| `RESTORE_TASK` | El clic siguiente la trae al frente como desde recientes (`startActivityFromRecents`, inmediato) y, si era flotante, con sus límites. Si eso falla, reordena las ventanas directamente. | Shizuku |
+
+Las ventanas solo se tocan con un id que el propio sistema listó y con su token (nunca armado por la app). La app
+"al frente" es la que tiene el foco del sistema (`TaskInfo.isFocused`, en `AppUtils.frontTask`). Las llamadas
+heredadas de Smart Dock de arriba siguen donde estaban; pasarlas a esta clase queda pendiente.
 
 ## Nombres de paquete fijos en el código (importante para el renombrado)
 
