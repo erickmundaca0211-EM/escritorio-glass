@@ -76,6 +76,7 @@ MainActivity (ajustes y permisos) ── SharedPreferences ──▶ DockService
 | Menú de apagado | `showPowerMenu` `:1878-1919` | Centrado | `FLAG_NOT_FOCUSABLE \| FLAG_WATCH_OUTSIDE_TOUCH` |
 | Notificación emergente | `components/NotificationLayout.kt:211` | Esquina | — |
 | Selector de ventanas (Alt+Tab y Vista de tareas, Fase 6) | `components/TaskSwitcher.kt`, `showTaskSwitcher` | Centrado, `WRAP_CONTENT` | `FLAG_NOT_FOCUSABLE \| FLAG_WATCH_OUTSIDE_TOUCH` |
+| Franja del gesto inferior (Fase 6) | `createEdgeSwipeStrip` | Ancho completo × 8 dp en el borde de abajo, `fitInsetsTypes = 0` | `TYPE_ACCESSIBILITY_OVERLAY`: queda sobre la zona de gestos de HyperOS (`GestureStubHome`). Deslizar hacia arriba abre el selector o, sobre una app a pantalla completa, muestra la barra. Se oculta con el teclado en pantalla, la pantalla apagada y la de bloqueo |
 | Toast propio | `showToast` `:535` | Encima del dock | — |
 | Diálogos del servicio | `dialogs/DockDialog.kt:23` | Diálogo Material | `window.setType(TYPE_APPLICATION_OVERLAY)` |
 
@@ -131,7 +132,8 @@ Se usa a través de `DeviceUtils.putSecureSetting`, `putGlobalSetting` y `putSys
 - `DeviceUtils.hasShizukuPermission()` = `Shizuku.pingBinder() && checkSelfPermission()`. El permiso se pide desde
   `MainActivity.requestShizukuPermission` (`:184`).
 - `wrappers/`: `ActivityManagerWrapper` (tareas, `resizeTask`, `removeTask`), `WindowOrganizerWrapper` (manda una
-  ventana detrás del escritorio o la trae al frente; solo lo usa `PrivilegedActions`), `WifiManagerWrapper` (encender
+  ventana detrás del escritorio o la trae al frente; solo lo usa `PrivilegedActions`), `StatusBarWrapper` (bloquea la
+  cortina del sistema con `IStatusBarService.disable`, por reflexión; solo lo usa `PrivilegedActions`), `WifiManagerWrapper` (encender
   o apagar Wi-Fi, escanear) y `BluetoothManagerWrapper`. Usan `ShizukuBinderWrapper` +
   `SystemServiceHelper.getSystemService(...)` sobre las interfaces AIDL ocultas de `app/src/main/aidl/android/`
   (`WindowOrganizerWrapper` llega a las suyas por reflexión: `IActivityTaskManager`, `IWindowOrganizerController` y
@@ -161,6 +163,7 @@ lista blanca es el enum `Action`:
 | `CLOSE_TASK` | "Cerrar ventana" del menú de la barra, como deslizarla en recientes. | Shizuku |
 | `MINIMIZE_TASK` | Clic en el botón de la app que está al frente: manda su ventana detrás del escritorio (`WindowContainerTransaction.reorder`). HyperOS deja las ventanas flotantes siempre encima, así que antes pasan a pantalla completa y se guardan sus límites. | Shizuku |
 | `RESTORE_TASK` | El clic siguiente la trae al frente como desde recientes (`startActivityFromRecents`, inmediato) y, si era flotante, con sus límites. Si eso falla, reordena las ventanas directamente. | Shizuku |
+| `BLOCK_SYSTEM_SHADE` | Mientras dura el modo escritorio, la cortina y los ajustes rápidos del sistema no se abren (`DISABLE_EXPAND` y `DISABLE2_QUICK_SETTINGS`). El bloqueo va atado a un `Binder` del proceso: el sistema lo quita solo si la app muere; al salir del modo escritorio se levanta, y si Shizuku ya no está, el proceso termina para soltarlo. Ajuste «Bloquear la cortina del sistema». | Shizuku |
 
 Las ventanas solo se tocan con un id que el propio sistema listó y con su token (nunca armado por la app). La app
 "al frente" es la que tiene el foco del sistema (`TaskInfo.isFocused`, en `AppUtils.frontTask`). Las llamadas
