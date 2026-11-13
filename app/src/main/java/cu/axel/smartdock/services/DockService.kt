@@ -42,6 +42,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.PowerManager
 import android.os.Process
 import android.provider.Settings
 import android.service.notification.StatusBarNotification
@@ -322,6 +323,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
 
     /** Brought up by a swipe from the bottom edge over a full-screen app: the next touch elsewhere hides it. */
     private var taskbarRevealedByTouch = false
+    private val powerManager by lazy { getSystemService(POWER_SERVICE) as PowerManager }
     private val windowPackages = HashMap<Int, String>() // accessibility window id -> package
     private var homePackages = emptySet<String>()
     private val autoHideHandler = Handler(Looper.getMainLooper())
@@ -716,6 +718,9 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             autoHideHandler.removeCallbacks(fullscreenCheck)
             autoHideHandler.postDelayed(fullscreenCheck, FULLSCREEN_CHECK_DELAY_MS)
         }
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED && (screenOff || dock?.isVisible == false) &&
+            powerManager.isInteractive && !keyguardManager.isKeyguardLocked
+        ) onUnlocked()
         if (event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED && edgeSwipeStrip != null &&
             event.windowChanges and (AccessibilityEvent.WINDOWS_CHANGE_ADDED or
                     AccessibilityEvent.WINDOWS_CHANGE_REMOVED) != 0
@@ -1027,6 +1032,9 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
 
     private fun checkFullscreenApp() {
         if (dock == null) return
+        // The lock screen is not an app: leave the taskbar as it is until the phone is unlocked.
+        // Showing it now would hide its window, and with it the forced landscape, until then
+        if (keyguardManager.isKeyguardLocked) return
         if (autoHideEnabled() && isFullscreenAppInFront()) {
             if (isPinned && !autoHideSuppressed && !autoHideHandler.hasCallbacks(autoHideRunnable)) {
                 Log.d("EG", "taskbar: full-screen app in front, hiding in $TASKBAR_AUTOHIDE_DELAY_MS ms")
@@ -2259,15 +2267,24 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
      * window stays hidden after unlocking unless it is brought back here.
      */
     private val unlockReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
+        override fun onReceive(context: Context, intent: Intent) = onUnlocked()
+    }
+
+    /**
+     * The phone was unlocked: what was put away for the lock screen comes back. Called on
+     * USER_PRESENT and, sooner, on the first window change once the lock screen is gone (HyperOS can
+     * hand out USER_PRESENT seconds later, and until then the screen stays in portrait).
+     */
+    private fun onUnlocked() {
+        if (screenOff) {
             screenOff = false
             updateEdgeSwipeStrip()
-            val bar = dock ?: return
-            if (bar.isVisible || keyguardManager.isKeyguardLocked) return
-            if (isPinned || sharedPreferences.getString("activation_method", "swipe") == "swipe")
-                bar.isVisible = true
-            checkFullscreenApp()
         }
+        val bar = dock ?: return
+        if (bar.isVisible || keyguardManager.isKeyguardLocked) return
+        if (isPinned || sharedPreferences.getString("activation_method", "swipe") == "swipe")
+            bar.isVisible = true
+        checkFullscreenApp()
     }
 
     /** Shizuku was installed while the user was setting it up: show how to start it. */
