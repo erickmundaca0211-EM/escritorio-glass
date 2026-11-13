@@ -185,6 +185,9 @@ private const val EDGE_SWIPE_DP = 40
 /** The edge strip covers at least the system's gesture zone (HyperOS's GestureStubHome is 38 px). */
 private const val EDGE_STRIP_MIN_PX = 40
 
+/** A swipe up that starts this close to the right end shows the desktop instead of the switcher. */
+private const val EDGE_CORNER_DP = 64
+
 // Escritorio Glass Start menu (docs/DISENO.md, "Menú Inicio")
 private const val START_MENU_WIDTH_DP = 560
 private const val START_MENU_HEIGHT_DP = 434
@@ -243,6 +246,12 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
 
     /** The switcher was opened with Alt+Tab: letting go of Alt switches to the selected window. */
     private var taskSwitcherByKeyboard = false
+
+    /** Windows that "show desktop" sent behind it, top one first, to bring them back the same. */
+    private var desktopShownTasks: List<Int> = emptyList()
+
+    /** The Windows key was used together with another key: going up it must not open Start. */
+    private var metaChord = false
 
     /** Swipe catcher on the bottom edge (see createEdgeSwipeStrip). */
     private var edgeSwipeStrip: View? = null
@@ -783,6 +792,21 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     //Handle keyboard shortcuts
     override fun onKeyEvent(event: KeyEvent): Boolean {
         if (handleTaskSwitcherKey(event)) return true
+        val metaKey = event.keyCode == KeyEvent.KEYCODE_META_LEFT || event.keyCode == KeyEvent.KEYCODE_META_RIGHT
+        if (metaKey && event.action == KeyEvent.ACTION_DOWN) metaChord = false
+        if (!metaKey && event.isMetaPressed) {
+            metaChord = true
+            // Windows+D shows the desktop and, pressed again, gives the windows back
+            if (event.keyCode == KeyEvent.KEYCODE_D) {
+                if (event.action == KeyEvent.ACTION_UP) toggleShowDesktop()
+                return true
+            }
+        }
+        if (metaKey && event.action == KeyEvent.ACTION_UP && metaChord) {
+            // Used with another key: going up alone it doesn't open Start
+            metaChord = false
+            return true
+        }
         // Esc closes the Start menu (keys are only used as shortcuts, never stored)
         if (appMenuVisible && event.keyCode == KeyEvent.KEYCODE_ESCAPE) {
             if (event.action == KeyEvent.ACTION_UP) hideAppMenu()
@@ -848,10 +872,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
                 )
                     launchApp(null, sharedPreferences.getString("app_rec", "")!!)
                 else if (event.keyCode == KeyEvent.KEYCODE_D)
-                    startActivity(
-                        Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
-                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    )
+                    toggleShowDesktop()
                 else if (event.keyCode == KeyEvent.KEYCODE_O) {
                     toggleSoftKeyboard()
                 } else if (event.keyCode == KeyEvent.KEYCODE_F12)
@@ -2741,6 +2762,8 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         // Down to the very edge, over the navigation (gesture) area
         layoutParams.fitInsetsTypes = 0
         val distance = Utils.dpToPx(context, EDGE_SWIPE_DP)
+        val corner = Utils.dpToPx(context, EDGE_CORNER_DP)
+        var startX = 0f
         var startY = 0f
         var swiped = false
         var press: MotionEvent? = null
@@ -2752,6 +2775,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             }
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
+                    startX = event.x
                     startY = event.rawY
                     swiped = false
                     press?.recycle()
@@ -2760,7 +2784,8 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
 
                 MotionEvent.ACTION_MOVE -> if (!swiped && startY - event.rawY >= distance) {
                     swiped = true
-                    onEdgeSwipe()
+                    // From the bottom-right corner, under the show desktop button: show the desktop
+                    if (startX >= view.width - corner) toggleShowDesktop() else onEdgeSwipe()
                 }
 
                 MotionEvent.ACTION_UP -> {
@@ -2820,6 +2845,46 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     private fun onEdgeSwipe() {
         Log.d("EG", "edge swipe")
         if (taskSwitcher == null) showTaskSwitcher(byKeyboard = false)
+    }
+
+    // ---- Show desktop (Windows+D, the button at the far end of the taskbar, a swipe up from the
+    // bottom-right corner): every window goes behind the desktop; the next time they all come back
+
+    /** Open app windows, on screen or covered by others, top one first (not the desktop nor the system's UI). */
+    private fun openWindows(): List<ActivityManager.RunningTaskInfo> {
+        val launcher = AppUtils.getCurrentLauncher(packageManager)
+        return PrivilegedActions.runningTasks(context, MAX_SWITCHER_TASKS).filter {
+            val app = it.baseActivity?.packageName
+            app != null && it.topActivity != null && app != launcher && app != "com.android.systemui"
+        }
+    }
+
+    private fun toggleShowDesktop() {
+        hideFlyouts()
+        if (appMenuVisible) hideAppMenu()
+        hideTaskSwitcher()
+        if (!PrivilegedActions.isAllowed(context, PrivilegedActions.Action.MINIMIZE_TASK)) {
+            // Without Shizuku: the system's home (HyperOS keeps floating windows over it)
+            performGlobalAction(GLOBAL_ACTION_HOME)
+            return
+        }
+        val open = openWindows()
+        val onScreen = open.filter { it.isVisible }
+        if (onScreen.isEmpty() && desktopShownTasks.isNotEmpty()) {
+            // Nothing opened since: they come back, the bottom one first so the top one ends on top
+            val tasks = desktopShownTasks
+            desktopShownTasks = emptyList()
+            tasks.asReversed().forEach { PrivilegedActions.restoreTask(context, it) }
+            Log.d("EG", "desktop: ${tasks.size} windows back")
+        } else {
+            // All of them go behind the desktop, also the ones covered by others (they would show up as
+            // soon as the ones on top went away); the ones that were on screen are the ones that come back
+            val minimized = open.filter { PrivilegedActions.minimizeTask(context, it.taskId) }
+                .map { it.taskId }.toSet()
+            desktopShownTasks = onScreen.map { it.taskId }.filter { it in minimized }
+            Log.d("EG", "desktop: ${minimized.size} windows minimized, ${desktopShownTasks.size} to bring back")
+        }
+        dockHandler.postDelayed({ updateRunningTasks(force = true) }, CLOSE_REFRESH_MS)
     }
 
     /** The lock screen is coming: the strip goes away before it (it would catch the swipe to unlock). */
@@ -3293,6 +3358,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             true
         }
         notificationsArea.setOnClickListener { notificationBtn.performClick() }
+        dock!!.findViewById<View>(R.id.show_desktop_btn).setOnClickListener { toggleShowDesktop() }
         searchBtn.setOnClickListener { toggleAppMenu() }
         trayOverflowBtn.setOnClickListener { toggleTrayOverflow(it) }
         dateBlock.setOnClickListener { openCalendarApp() }

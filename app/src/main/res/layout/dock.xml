@@ -207,6 +207,15 @@
                     android:textStyle="bold"
                     android:visibility="gone" />
             </FrameLayout>
+
+            <!-- Show desktop: the thin sliver at the far end, as in the Windows 11 taskbar -->
+            <View
+                android:id="@+id/show_desktop_btn"
+                android:layout_width="12dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="4dp"
+                android:background="@drawable/show_desktop_bg"
+                android:contentDescription="@string/taskbar_show_desktop" />
         </LinearLayout>
 
         <!-- Centre: [back][home] Start, Search, Task view, then pinned and open apps -->

@@ -161,7 +161,7 @@ lista blanca es el enum `Action`:
 | `SET_NIGHT_DISPLAY` | Enciende o apaga la luz nocturna de Android (`night_display_activated`): botón "Protección visual". | `WRITE_SECURE_SETTINGS` |
 | `LIST_TASKS` | Lee las ventanas abiertas para la barra (solo app e id). | Shizuku |
 | `CLOSE_TASK` | "Cerrar ventana" del menú de la barra, como deslizarla en recientes. | Shizuku |
-| `MINIMIZE_TASK` | Clic en el botón de la app que está al frente: manda su ventana detrás del escritorio (`WindowContainerTransaction.reorder`). HyperOS deja las ventanas flotantes siempre encima, así que antes pasan a pantalla completa y se guardan sus límites. | Shizuku |
+| `MINIMIZE_TASK` | Clic en el botón de la app que está al frente: manda su ventana detrás del escritorio (`WindowContainerTransaction.reorder`). HyperOS deja las ventanas flotantes siempre encima, así que antes pasan a pantalla completa y se guardan sus límites. «Mostrar escritorio» (botón al final de la barra, Windows + D o Alt + D, deslizar desde la esquina inferior derecha) lo hace con todas las ventanas abiertas y la vez siguiente devuelve las que estaban a la vista. | Shizuku |
 | `RESTORE_TASK` | El clic siguiente la trae al frente como desde recientes (`startActivityFromRecents`, inmediato) y, si era flotante, con sus límites. Si eso falla, reordena las ventanas directamente. | Shizuku |
 | `BLOCK_SYSTEM_SHADE` | Mientras dura el modo escritorio, la cortina y los ajustes rápidos del sistema no se abren (`DISABLE_EXPAND` y `DISABLE2_QUICK_SETTINGS`). El bloqueo va atado a un `Binder` del proceso: el sistema lo quita solo si la app muere; al salir del modo escritorio se levanta, y si Shizuku ya no está, el proceso termina para soltarlo. Ajuste «Bloquear la cortina del sistema». | Shizuku |
 

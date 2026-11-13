@@ -21,6 +21,7 @@
     <string name="taskbar_search">Search</string>
     <string name="taskbar_task_view">Task view</string>
     <string name="task_switcher_empty">No open windows</string>
+    <string name="taskbar_show_desktop">Show desktop</string>
     <string name="taskbar_back">Back</string>
     <string name="taskbar_home">Home</string>
     <string name="taskbar_hidden_icons">Show hidden icons</string>
