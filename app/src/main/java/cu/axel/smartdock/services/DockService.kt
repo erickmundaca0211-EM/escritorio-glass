@@ -52,6 +52,7 @@ import android.view.Display
 import android.view.GestureDetector
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
+import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -180,6 +181,9 @@ private const val KEY_EDGE_SWIPE_SWITCHER = "edge_swipe_switcher"
 
 /** How far a finger must slide up from the bottom edge to count as the swipe. */
 private const val EDGE_SWIPE_DP = 40
+
+/** The edge strip covers at least the system's gesture zone (HyperOS's GestureStubHome is 38 px). */
+private const val EDGE_STRIP_MIN_PX = 40
 
 // Escritorio Glass Start menu (docs/DISENO.md, "Menú Inicio")
 private const val START_MENU_WIDTH_DP = 560
@@ -320,9 +324,6 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     // used, never what the windows show (CLAUDE.md).
     private var autoHidden = false
     private var autoHideSuppressed = false
-
-    /** Brought up by a swipe from the bottom edge over a full-screen app: the next touch elsewhere hides it. */
-    private var taskbarRevealedByTouch = false
     private val powerManager by lazy { getSystemService(POWER_SERVICE) as PowerManager }
     private val windowPackages = HashMap<Int, String>() // accessibility window id -> package
     private var homePackages = emptySet<String>()
@@ -1095,7 +1096,6 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     fun pinDock() {
         isPinned = true
         autoHidden = false
-        taskbarRevealedByTouch = false
         pinBtn.setImageResource(R.drawable.ic_pin)
         if (dockLayout.isGone)
             showDock()
@@ -2574,6 +2574,11 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
      */
     private fun handleTaskSwitcherKey(event: KeyEvent): Boolean {
         val down = event.action == KeyEvent.ACTION_DOWN
+        // A keyboard's recent apps key opens this switcher too, not the system's (sideways in landscape)
+        if (event.keyCode == KeyEvent.KEYCODE_APP_SWITCH) {
+            if (!down) toggleTaskSwitcher()
+            return true
+        }
         if (event.keyCode == KeyEvent.KEYCODE_TAB && event.isAltPressed && !event.isCtrlPressed &&
             !event.isMetaPressed
         ) {
@@ -2725,8 +2730,11 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     private fun createEdgeSwipeStrip() {
         if (edgeSwipeStrip != null) return
         val strip = View(context)
+        // As tall as the system's own gesture zone, or a swipe that starts a little above the edge
+        // still reaches the system (HyperOS then opens its recent apps, drawn sideways in landscape)
         val layoutParams = Utils.makeWindowParams(
-            WindowManager.LayoutParams.MATCH_PARENT, Utils.dpToPx(context, TASKBAR_MARGIN_BOTTOM_DP),
+            WindowManager.LayoutParams.MATCH_PARENT,
+            maxOf(Utils.dpToPx(context, TASKBAR_MARGIN_BOTTOM_DP), EDGE_STRIP_MIN_PX),
             context, preferSecondaryDisplay, accessibilityWindow = true
         )
         layoutParams.gravity = Gravity.BOTTOM
@@ -2734,24 +2742,71 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         layoutParams.fitInsetsTypes = 0
         val distance = Utils.dpToPx(context, EDGE_SWIPE_DP)
         var startY = 0f
-        var done = false
-        strip.setOnTouchListener { _, event ->
+        var swiped = false
+        var press: MotionEvent? = null
+        strip.setOnTouchListener { view, event ->
+            // The mouse never swipes: its clicks belong to the taskbar under the strip
+            if (event.isFromSource(InputDevice.SOURCE_MOUSE)) {
+                forwardToTaskbar(view, event)
+                return@setOnTouchListener true
+            }
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
                     startY = event.rawY
-                    done = false
+                    swiped = false
+                    press?.recycle()
+                    press = MotionEvent.obtain(event)
                 }
 
-                MotionEvent.ACTION_MOVE -> if (!done && startY - event.rawY >= distance) {
-                    done = true
+                MotionEvent.ACTION_MOVE -> if (!swiped && startY - event.rawY >= distance) {
+                    swiped = true
                     onEdgeSwipe()
                 }
+
+                MotionEvent.ACTION_UP -> {
+                    // A plain tap on the strip was meant for the bottom edge of the taskbar under it
+                    if (!swiped) press?.let { down ->
+                        forwardToTaskbar(view, down)
+                        forwardToTaskbar(view, event)
+                    }
+                    press?.recycle()
+                    press = null
+                }
+
+                MotionEvent.ACTION_CANCEL -> {
+                    press?.recycle()
+                    press = null
+                }
             }
+            true
+        }
+        // The mouse at the bottom edge must still show the hidden taskbar and light up its buttons
+        strip.setOnHoverListener { view, event ->
+            forwardToTaskbar(view, event)
             true
         }
         windowManager.addView(strip, layoutParams)
         edgeSwipeStrip = strip
         updateEdgeSwipeStrip()
+    }
+
+    /** Hands an event that landed on the edge strip to the taskbar under it, in the taskbar's coordinates. */
+    private fun forwardToTaskbar(strip: View, event: MotionEvent) {
+        val bar = dock ?: return
+        if (!bar.isAttachedToWindow || !bar.isVisible) return
+        val stripPlace = IntArray(2)
+        val barPlace = IntArray(2)
+        strip.getLocationOnScreen(stripPlace)
+        bar.getLocationOnScreen(barPlace)
+        val copy = MotionEvent.obtain(event)
+        copy.offsetLocation((stripPlace[0] - barPlace[0]).toFloat(), (stripPlace[1] - barPlace[1]).toFloat())
+        when (copy.actionMasked) {
+            MotionEvent.ACTION_HOVER_ENTER, MotionEvent.ACTION_HOVER_MOVE, MotionEvent.ACTION_HOVER_EXIT ->
+                bar.dispatchGenericMotionEvent(copy)
+
+            else -> bar.dispatchTouchEvent(copy)
+        }
+        copy.recycle()
     }
 
     /** The strip only stays where it can't get in the way: not on the lock screen, not over the keyboard. */
@@ -2761,24 +2816,10 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
                 !imeVisible && !keyguardManager.isKeyguardLocked
     }
 
+    /** Always the switcher, also over a full-screen app (the hidden taskbar comes back with the mouse). */
     private fun onEdgeSwipe() {
-        Log.d("EG", "edge swipe (taskbar hidden: $autoHidden)")
-        if (autoHidden) {
-            // Over a full-screen app the taskbar is hidden: the swipe brings it up, like the mouse
-            // does, until the next touch on the app (hideTaskbarRevealedByTouch)
-            if (dockLayout.isGone) showDock()
-            taskbarRevealedByTouch = true
-        } else if (taskSwitcher == null) showTaskSwitcher(byKeyboard = false)
-    }
-
-    private fun hideTaskbarRevealedByTouch() {
-        if (!taskbarRevealedByTouch || !autoHidden) return
-        // Not while one of its panels is open: the touch may be on it
-        if (appMenuVisible || quickSettingsPanelVisible || powerMenuVisible || notificationCenterVisible ||
-            calendarPanelVisible || taskSwitcher != null
-        ) return
-        taskbarRevealedByTouch = false
-        hideDock(0, auto = true)
+        Log.d("EG", "edge swipe")
+        if (taskSwitcher == null) showTaskSwitcher(byKeyboard = false)
     }
 
     /** The lock screen is coming: the strip goes away before it (it would catch the swipe to unlock). */
@@ -3011,10 +3052,6 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     }
 
     override fun onTouch(view: View, motionEvent: MotionEvent): Boolean {
-        if (motionEvent.action == MotionEvent.ACTION_OUTSIDE) {
-            hideTaskbarRevealedByTouch()
-            return false
-        }
         gestureDetector.onTouchEvent(motionEvent)
         return false
     }
@@ -3188,7 +3225,9 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         }
         dock!!.onBarHover = { action ->
             if (action == MotionEvent.ACTION_HOVER_ENTER) {
-                if (dockLayout.isGone) showDock()
+                // Back over the bar, or over the edge strip under it (a move between the two windows
+                // leaves one first): a hide that was about to happen must not
+                if (dockLayout.isGone) showDock() else dockHandler.removeCallbacksAndMessages(null)
             } else if (action == MotionEvent.ACTION_HOVER_EXIT) if (dockLayout.isVisible) {
                 if (autoHidden) hideDock(TASKBAR_HOVER_HIDE_DELAY_MS, auto = true) else hideDock(500)
             }
@@ -3262,8 +3301,6 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         dockHeight = taskbarWindowHeight()
         dockLayoutParams =
             Utils.makeWindowParams(-1, dockHeight, context, preferSecondaryDisplay)
-        // A touch on the app hides the taskbar again when a swipe brought it up (onTouch)
-        dockLayoutParams.flags = dockLayoutParams.flags or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
         dockLayoutParams.screenOrientation =
             if (sharedPreferences.getBoolean("lock_landscape", false))
                 ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE

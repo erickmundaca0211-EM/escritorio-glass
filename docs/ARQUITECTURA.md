@@ -76,7 +76,7 @@ MainActivity (ajustes y permisos) ── SharedPreferences ──▶ DockService
 | Menú de apagado | `showPowerMenu` `:1878-1919` | Centrado | `FLAG_NOT_FOCUSABLE \| FLAG_WATCH_OUTSIDE_TOUCH` |
 | Notificación emergente | `components/NotificationLayout.kt:211` | Esquina | — |
 | Selector de ventanas (Alt+Tab y Vista de tareas, Fase 6) | `components/TaskSwitcher.kt`, `showTaskSwitcher` | Centrado, `WRAP_CONTENT` | `FLAG_NOT_FOCUSABLE \| FLAG_WATCH_OUTSIDE_TOUCH` |
-| Franja del gesto inferior (Fase 6) | `createEdgeSwipeStrip` | Ancho completo × 8 dp en el borde de abajo, `fitInsetsTypes = 0` | `TYPE_ACCESSIBILITY_OVERLAY`: queda sobre la zona de gestos de HyperOS (`GestureStubHome`). Deslizar hacia arriba abre el selector o, sobre una app a pantalla completa, muestra la barra. Se oculta con el teclado en pantalla, la pantalla apagada y la de bloqueo |
+| Franja del gesto inferior (Fase 6) | `createEdgeSwipeStrip` | Ancho completo × 40 px en el borde de abajo (la zona de gestos de HyperOS mide 38 px), `fitInsetsTypes = 0` | `TYPE_ACCESSIBILITY_OVERLAY`: queda sobre la zona de gestos de HyperOS (`GestureStubHome`). Deslizar hacia arriba abre el selector; los toques sin deslizar y el mouse se le reenvían a la barra que queda debajo. Se oculta con el teclado en pantalla, la pantalla apagada y la de bloqueo |
 | Toast propio | `showToast` `:535` | Encima del dock | — |
 | Diálogos del servicio | `dialogs/DockDialog.kt:23` | Diálogo Material | `window.setType(TYPE_APPLICATION_OVERLAY)` |
 

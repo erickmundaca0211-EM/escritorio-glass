@@ -36,9 +36,9 @@
     <string name="app_scale_summary">Hace más pequeñas las apps y ventanas mientras el escritorio está activo, para que quepa más contenido. 100 = sin cambios; al desactivar el escritorio vuelve tu escala. La barra conserva su tamaño.</string>
     <string name="app_scale_needs_permission">Necesita el permiso de configuración segura (Permisos, Opcional)</string>
     <string name="autohide_fullscreen_title">Ocultar la barra con apps a pantalla completa</string>
-    <string name="autohide_fullscreen_summary">Se esconde al segundo; para que vuelva, lleva el mouse al borde de abajo o desliza desde ahí hacia arriba</string>
+    <string name="autohide_fullscreen_summary">Se esconde al segundo; lleva el mouse al borde de abajo para que vuelva</string>
     <string name="edge_swipe_switcher_title">Deslizar desde abajo abre el selector de ventanas</string>
-    <string name="edge_swipe_switcher_summary">En modo escritorio, deslizar hacia arriba desde el borde de abajo muestra el selector (o la barra, si está escondida) en lugar de las apps recientes del sistema</string>
+    <string name="edge_swipe_switcher_summary">En modo escritorio, deslizar hacia arriba desde el borde de abajo muestra el selector en lugar de las apps recientes del sistema</string>
     <string name="block_system_shade_title">Bloquear la cortina del sistema</string>
     <string name="block_system_shade_summary">En modo escritorio no se abren la cortina ni los ajustes rápidos del sistema; usa los de la barra (necesita Shizuku)</string>
     <string name="start_search_hint">Buscar apps</string>
