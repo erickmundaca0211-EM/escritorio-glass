@@ -194,6 +194,9 @@ private const val EDGE_STRIP_MM = 4.3f
 /** A swipe up that starts this close (real millimetres) to the right end shows the desktop. */
 private const val EDGE_CORNER_MM = 18.2f
 
+/** Over a hidden taskbar, how close to the bottom edge (real millimetres) the mouse brings it back. */
+private const val MOUSE_REVEAL_MM = 1.5f
+
 /** Real millimetres to pixels, with the screen's physical density (not the app scale). */
 private fun mmToPx(mm: Float, dpi: Float) = (mm * dpi / 25.4f + 0.5f).toInt()
 
@@ -216,6 +219,9 @@ private const val TRAY_ARROW_MS = 220L
 
 /** After closing a window, when to read the open windows again. */
 private const val CLOSE_REFRESH_MS = 350L
+
+/** While floating windows are hidden, how often to look for one opened from elsewhere. */
+private const val RAISED_WINDOW_CHECK_MS = 500L
 
 /** Most windows the switcher (Alt+Tab) shows. */
 private const val MAX_SWITCHER_TASKS = 30
@@ -259,8 +265,12 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     /** The switcher was opened with Alt+Tab: letting go of Alt switches to the selected window. */
     private var taskSwitcherByKeyboard = false
 
+    /** Reads the open windows again once the system has dropped a closed one from its list. */
+    private val closedTaskRefresh = Runnable { updateRunningTasks(force = true) }
+
     /** Windows that "show desktop" sent behind it, top one first, to bring them back the same. */
     private var desktopShownTasks: List<Int> = emptyList()
+    private var leftoverWindowsShown = false
 
     /** The Windows key was used together with another key: going up it must not open Start. */
     private var metaChord = false
@@ -280,6 +290,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     // Own handlers: the bar clears dockHandler's queue every time it shows or hides
     private val shizukuHandler = Handler(Looper.getMainLooper())
     private val taskbarRefreshHandler = Handler(Looper.getMainLooper())
+    private val hiddenWindowsHandler = Handler(Looper.getMainLooper())
     private var orientationValue: String = ""
     private var orientation = -1
     private var densityDpi = 0
@@ -593,6 +604,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         else
             Toast.makeText(context, R.string.start_message, Toast.LENGTH_LONG).show()
         updateSystemShadeBlock()
+        showLeftoverHiddenWindows()
         createEdgeSwipeStrip()
 
     }
@@ -667,6 +679,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
                 PrivilegedActions.minimizeTask(context, taskId)
             ) {
                 dockHandler.postDelayed({ updateRunningTasks(force = true) }, CLOSE_REFRESH_MS)
+                watchHiddenWindows()
                 return
             } else if (!PrivilegedActions.restoreTask(context, taskId))
                 activityManager.moveTaskToFront(taskId, 0)
@@ -1157,6 +1170,8 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
                     override fun onAnimationStart(p1: Animation) {}
                     override fun onAnimationEnd(p1: Animation) {
                         dockLayout.visibility = View.GONE
+                        // A mouse still at the bottom edge brings it back with its next move
+                        dock?.resetHover()
                         val activationMethod =
                             sharedPreferences.getString("activation_method", "swipe")!!
                         if (auto || activationMethod == "swipe") {
@@ -1236,6 +1251,9 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
 
             if (newInstance)
                 launchIntent.addFlags(Intent.FLAG_ACTIVITY_MULTIPLE_TASK or Intent.FLAG_ACTIVITY_NEW_TASK)
+            // A floating window of the app hidden by Show desktop would come up still hidden
+            else if (packageName != null)
+                PrivilegedActions.showHiddenWindows(context, packageName)
 
             context.startActivity(launchIntent, options.toBundle())
         }
@@ -1519,10 +1537,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
                 }
 
                 getString(R.string.taskbar_close_window), getString(R.string.taskbar_close_windows) -> {
-                    app.tasks.filter { it.id > 0 }
-                        .forEach { PrivilegedActions.closeTask(context, it.id) }
-                    // The system needs a moment to drop the task from its list
-                    dockHandler.postDelayed({ updateRunningTasks(force = true) }, CLOSE_REFRESH_MS)
+                    app.tasks.forEach { closeWindow(it.id, it.packageName) }
                 }
             }
             if (view.isAttachedToWindow) windowManager.removeView(view)
@@ -2320,6 +2335,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         if (screenOff) {
             screenOff = false
             updateEdgeSwipeStrip()
+            watchHiddenWindows()
         }
         val bar = dock ?: return
         if (bar.isVisible || keyguardManager.isKeyguardLocked) return
@@ -2351,6 +2367,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             shizukuSetupActive = false
             hideShizukuSetup()
             updateSystemShadeBlock()
+            showLeftoverHiddenWindows()
             updateRunningTasks(force = true)
         } else {
             if (shizukuSetupActive) showShizukuSetup(status)
@@ -2367,6 +2384,18 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         val wanted = sharedPreferences.getBoolean(KEY_BLOCK_SYSTEM_SHADE, true)
         if (wanted != PrivilegedActions.systemShadeBlocked)
             PrivilegedActions.setSystemShadeBlocked(this, wanted)
+    }
+
+    /**
+     * Floating windows minimized by a desktop that stopped before bringing them back stay hidden:
+     * they are shown again once, as soon as Shizuku answers.
+     */
+    private fun showLeftoverHiddenWindows() {
+        if (leftoverWindowsShown ||
+            !PrivilegedActions.isAllowed(context, PrivilegedActions.Action.RESTORE_TASK)
+        ) return
+        leftoverWindowsShown = true
+        PrivilegedActions.showHiddenWindows(context)
     }
 
     private fun showShizukuSetup(status: ShizukuState.Status = ShizukuState.status(this)) {
@@ -2657,6 +2686,12 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
                 if (!down) pickTaskSwitcherSelection()
                 return true
             }
+
+            // Supr closes the selected window, as in Windows' Alt+Tab (held down, only one)
+            KeyEvent.KEYCODE_FORWARD_DEL -> {
+                if (down && event.repeatCount == 0) switcher.closeSelected()
+                return true
+            }
         }
         return false
     }
@@ -2693,7 +2728,8 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         val switcher = TaskSwitcher(
             ContextThemeWrapper(context, R.style.AppTheme_Dock), tasks,
             { task -> iconPackUtils?.getAppThemedIcon(task.packageName) ?: task.icon },
-            taskSwitcherHost
+            canClose = PrivilegedActions.isAllowed(context, PrivilegedActions.Action.CLOSE_TASK),
+            host = taskSwitcherHost
         )
         val layoutParams = Utils.makeWindowParams(
             WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT,
@@ -2757,6 +2793,35 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             hideTaskSwitcher()
             switchToTask(task)
         }
+
+        override fun close(task: AppTask) = closeWindow(task.id, task.packageName)
+
+        override fun dismiss(switcher: TaskSwitcher) {
+            if (taskSwitcher === switcher) hideTaskSwitcher()
+        }
+    }
+
+    /**
+     * Closes a window, like swiping it away in the system's recent apps. Ours (settings) close as our
+     * own tasks: the system's way would also end the process the taskbar runs in.
+     */
+    private fun closeWindow(taskId: Int, pkg: String): Boolean {
+        if (taskId <= 0) return false
+        val closed = if (pkg == packageName) {
+            val own = activityManager.appTasks.firstOrNull {
+                runCatching { it.taskInfo.taskId == taskId }.getOrDefault(false)
+            }
+            own?.finishAndRemoveTask()
+            own != null
+        } else PrivilegedActions.closeTask(context, taskId)
+        Log.d("EG", "close task $taskId ($pkg): $closed")
+        if (closed) {
+            desktopShownTasks = desktopShownTasks - taskId
+            // The system needs a moment to drop the task from its list
+            taskbarRefreshHandler.removeCallbacks(closedTaskRefresh)
+            taskbarRefreshHandler.postDelayed(closedTaskRefresh, CLOSE_REFRESH_MS)
+        }
+        return closed
     }
 
     /** Brings [task] to the front, like a click on its taskbar button but never minimizing it. */
@@ -2764,9 +2829,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         Log.d("EG", "switcher: to task ${task.id}")
         // From a full-screen app to another one: the hidden taskbar stays hidden while it comes up,
         // and is looked at again once it is there (in case it isn't full screen after all)
-        if (autoHidden && task.windowingMode == WINDOWING_MODE_FULLSCREEN &&
-            !PrivilegedActions.restoresFloating(task.id)
-        ) {
+        if (autoHidden && task.windowingMode == WINDOWING_MODE_FULLSCREEN) {
             keepTaskbarHiddenUntil = SystemClock.uptimeMillis() + SWITCH_KEEP_HIDDEN_MS
             autoHideHandler.removeCallbacks(afterSwitchCheck)
             autoHideHandler.postDelayed(afterSwitchCheck, SWITCH_KEEP_HIDDEN_MS)
@@ -2835,9 +2898,14 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             }
             true
         }
-        // The mouse at the bottom edge must still show the hidden taskbar and light up its buttons
+        // The mouse at the bottom edge must still show the hidden taskbar and light up its buttons. Over
+        // a hidden taskbar only the lowest MOUSE_REVEAL_MM count: the rest of the strip is the finger's
+        val reveal = mmToPx(MOUSE_REVEAL_MM, physical.ydpi)
         strip.setOnHoverListener { view, event ->
-            forwardToTaskbar(view, event)
+            val barHidden = ::dockLayout.isInitialized && dockLayout.isGone
+            if (!barHidden || event.actionMasked == MotionEvent.ACTION_HOVER_EXIT ||
+                event.y >= view.height - reveal
+            ) forwardToTaskbar(view, event)
             true
         }
         windowManager.addView(strip, layoutParams)
@@ -2915,6 +2983,27 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             Log.d("EG", "desktop: ${minimized.size} windows minimized, ${desktopShownTasks.size} to bring back")
         }
         dockHandler.postDelayed({ updateRunningTasks(force = true) }, CLOSE_REFRESH_MS)
+        watchHiddenWindows()
+    }
+
+    /**
+     * While minimized floating windows are hidden, an app opened from elsewhere (the HyperOS home, a
+     * notification) comes to the front still hidden: it is shown at once. Only looked at while there
+     * are hidden windows and the screen is on.
+     */
+    private val raisedWindowCheck = object : Runnable {
+        override fun run() {
+            if (screenOff) return
+            if (PrivilegedActions.showRaisedWindows(context) > 0) updateRunningTasks(force = true)
+            if (PrivilegedActions.hasHiddenWindows(context))
+                hiddenWindowsHandler.postDelayed(this, RAISED_WINDOW_CHECK_MS)
+        }
+    }
+
+    private fun watchHiddenWindows() {
+        hiddenWindowsHandler.removeCallbacks(raisedWindowCheck)
+        if (PrivilegedActions.hasHiddenWindows(context))
+            hiddenWindowsHandler.postDelayed(raisedWindowCheck, RAISED_WINDOW_CHECK_MS)
     }
 
     /** The lock screen is coming: the strip goes away before it (it would catch the swipe to unlock). */
@@ -3156,12 +3245,15 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         // but the block dies with this process: it ends once everything else is restored
         val shadeStuck = PrivilegedActions.systemShadeBlocked &&
                 !PrivilegedActions.setSystemShadeBlocked(this, false)
+        // So do the floating windows Show desktop hid (else on the next start)
+        PrivilegedActions.showHiddenWindows(this)
         //TODO: Unregister all receivers
         Shizuku.removeBinderReceivedListener(shizukuReceived)
         Shizuku.removeBinderDeadListener(shizukuDead)
         Shizuku.removeRequestPermissionResultListener(shizukuPermission)
         shizukuHandler.removeCallbacksAndMessages(null)
         taskbarRefreshHandler.removeCallbacksAndMessages(null)
+        hiddenWindowsHandler.removeCallbacksAndMessages(null)
         try {
             unregisterReceiver(packageAddedReceiver)
         } catch (_: IllegalArgumentException) {

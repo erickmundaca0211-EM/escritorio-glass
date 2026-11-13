@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The × on a window in the switcher: a small dark glass circle over the icon's corner that turns red
+    under the mouse (activated, set by TaskSwitcher) or the finger, like the close button of Windows.
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:enterFadeDuration="90"
+    android:exitFadeDuration="120">
+    <item android:state_pressed="true">
+        <shape android:shape="oval">
+            <solid android:color="@color/danger_pressed" />
+        </shape>
+    </item>
+    <item android:state_activated="true">
+        <shape android:shape="oval">
+            <solid android:color="@color/danger" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="oval">
+            <solid android:color="@color/glass_badge" />
+            <stroke
+                android:width="1dp"
+                android:color="@color/glass_border" />
+        </shape>
+    </item>
+</selector>

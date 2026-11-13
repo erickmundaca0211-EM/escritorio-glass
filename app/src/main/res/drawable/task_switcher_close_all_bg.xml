@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- "Close all" in the switcher: a soft glass pill, a little brighter under the mouse. -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="#33FFFFFF">
+    <item android:id="@android:id/mask">
+        <shape android:shape="rectangle">
+            <corners android:radius="16dp" />
+            <solid android:color="#FFFFFFFF" />
+        </shape>
+    </item>
+    <item>
+        <selector
+            android:enterFadeDuration="120"
+            android:exitFadeDuration="180">
+            <item android:state_hovered="true">
+                <shape android:shape="rectangle">
+                    <corners android:radius="16dp" />
+                    <solid android:color="@color/glass_surface_hover_strong" />
+                </shape>
+            </item>
+            <item>
+                <shape android:shape="rectangle">
+                    <corners android:radius="16dp" />
+                    <solid android:color="@color/glass_surface_hover" />
+                </shape>
+            </item>
+        </selector>
+    </item>
+</ripple>

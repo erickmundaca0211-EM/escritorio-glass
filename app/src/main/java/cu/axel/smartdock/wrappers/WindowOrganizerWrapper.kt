@@ -1,6 +1,6 @@
 package cu.axel.smartdock.wrappers
 
-import android.graphics.Rect
+import android.app.TaskInfo
 import android.os.Bundle
 import android.os.IBinder
 import rikka.shizuku.ShizukuBinderWrapper
@@ -19,12 +19,12 @@ class WindowOrganizerWrapper {
     private val tokenClass: Class<*> = Class.forName("android.window.WindowContainerToken")
     private val reorderMethod: Method =
         transactionClass.getMethod("reorder", tokenClass, Boolean::class.javaPrimitiveType)
-    private val setWindowingModeMethod: Method =
-        transactionClass.getMethod("setWindowingMode", tokenClass, Int::class.javaPrimitiveType)
-    private val setBoundsMethod: Method = transactionClass.getMethod("setBounds", tokenClass, Rect::class.java)
+    private val setHiddenMethod: Method =
+        transactionClass.getMethod("setHidden", tokenClass, Boolean::class.javaPrimitiveType)
     private val applyTransaction: Method
     private val taskManager: Any
     private val startFromRecents: Method
+    private val allRootTasks: Method?
 
     init {
         // The activity task manager hands out the organizer; both are called as Shizuku's shell user
@@ -33,6 +33,11 @@ class WindowOrganizerWrapper {
             .invoke(null, ShizukuBinderWrapper(SystemServiceHelper.getSystemService("activity_task")))!!
         startFromRecents = taskManager.javaClass
             .getMethod("startActivityFromRecents", Int::class.javaPrimitiveType, Bundle::class.java)
+        allRootTasks = try {
+            taskManager.javaClass.getMethod("getAllRootTaskInfosOnDisplay", Int::class.javaPrimitiveType)
+        } catch (_: NoSuchMethodException) {
+            null
+        }
         val organizer = taskManager.javaClass.getMethod("getWindowOrganizerController").invoke(taskManager)!!
         val organizerBinder = organizer.javaClass.getMethod("asBinder").invoke(organizer) as IBinder
         binder = ShizukuBinderWrapper(organizerBinder)
@@ -43,31 +48,48 @@ class WindowOrganizerWrapper {
 
     fun isAlive() = binder.isBinderAlive
 
-    /**
-     * Sends the window whose [token] (TaskInfo.token) is given behind the desktop. HyperOS keeps
-     * floating windows above everything else, so [fromFloating] ones become full-screen first (a plain
-     * app in recents if the desktop stops before they come back).
-     */
-    fun sendToBack(token: Any, fromFloating: Boolean) {
+    /** The display's top-level windows (root tasks), the front one first; null if it can't be read. */
+    fun rootTasks(displayId: Int): List<TaskInfo>? =
+        (allRootTasks?.invoke(taskManager, displayId) as? List<*>)?.filterIsInstance<TaskInfo>()
+
+    /** Sends the window whose [token] (TaskInfo.token) is given behind the desktop. */
+    fun sendToBack(token: Any) {
         val transaction = transactionClass.getConstructor().newInstance()
-        if (fromFloating) setWindowingModeMethod.invoke(transaction, token, WINDOWING_MODE_FULLSCREEN)
         reorderMethod.invoke(transaction, token, false)
         applyTransaction.invoke(controller, transaction)
     }
 
     /**
-     * Brings the window [taskId] in front of the others, as a floating window again at
-     * [floatingBounds] when it was one. It is opened like from recents, as Shizuku's shell user: at
-     * once (not held back like an app's own request after a minimize) and showing the window's last
-     * picture while the app redraws. If that is refused the window stack is reordered directly.
+     * Hides the window [token] where it is, or shows it again. HyperOS keeps floating windows above
+     * everything else, so they can't go behind the desktop; hidden, they stay the same floating
+     * windows. Making them full-screen and floating again broke them: HyperOS only lets the user move
+     * the floating windows it made itself. A hidden window stays hidden until it is shown again or
+     * closed, also if this app stops (PrivilegedActions keeps their ids to show them again).
      */
-    fun bringToFront(taskId: Int, token: Any, floatingBounds: Rect?) {
-        if (floatingBounds != null) {
-            val transaction = transactionClass.getConstructor().newInstance()
-            setWindowingModeMethod.invoke(transaction, token, WINDOWING_MODE_FREEFORM)
-            setBoundsMethod.invoke(transaction, token, floatingBounds)
-            applyTransaction.invoke(controller, transaction)
-        }
+    fun setHidden(token: Any, hidden: Boolean) {
+        val transaction = transactionClass.getConstructor().newInstance()
+        setHiddenMethod.invoke(transaction, token, hidden)
+        applyTransaction.invoke(controller, transaction)
+    }
+
+    /**
+     * Brings the floating window [token] in front of the others where it is, also if it was hidden:
+     * only the window stack changes. Opened like from recents instead, HyperOS moves it elsewhere.
+     */
+    fun showInFront(token: Any) {
+        val transaction = transactionClass.getConstructor().newInstance()
+        setHiddenMethod.invoke(transaction, token, false)
+        reorderMethod.invoke(transaction, token, true)
+        applyTransaction.invoke(controller, transaction)
+    }
+
+    /**
+     * Brings the window [taskId] in front of the others. It is opened like from recents, as
+     * Shizuku's shell user: at once (not held back like an app's own request after a minimize) and
+     * showing the window's last picture while the app redraws. If that is refused the window stack
+     * is reordered directly.
+     */
+    fun bringToFront(taskId: Int, token: Any) {
         val result = try {
             startFromRecents.invoke(taskManager, taskId, null) as Int
         } catch (_: Exception) {
@@ -81,10 +103,6 @@ class WindowOrganizerWrapper {
     }
 
     private companion object {
-        // WindowConfiguration constants (hidden)
-        const val WINDOWING_MODE_FULLSCREEN = 1
-        const val WINDOWING_MODE_FREEFORM = 5
-
         // ActivityManager start results below 0 are failures
         const val START_REFUSED = -1
     }

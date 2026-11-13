@@ -20,6 +20,7 @@
     <string name="taskbar_search">Buscar</string>
     <string name="taskbar_task_view">Vista de tareas</string>
     <string name="task_switcher_empty">No hay ventanas abiertas</string>
+    <string name="task_switcher_close_all">Cerrar todo</string>
     <string name="taskbar_show_desktop">Mostrar escritorio</string>
     <string name="taskbar_back">Atrás</string>
     <string name="taskbar_home">Pantalla de inicio</string>

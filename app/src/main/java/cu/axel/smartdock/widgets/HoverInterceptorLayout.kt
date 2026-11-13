@@ -15,6 +15,11 @@ class HoverInterceptorLayout(context: Context, attrs: AttributeSet?) : LinearLay
     var onBarHover: ((Int) -> Unit)? = null
     private var inside = false
 
+    /** The bar was hidden under the pointer: its next move over the window counts as entering again. */
+    fun resetHover() {
+        inside = false
+    }
+
     override fun dispatchHoverEvent(event: MotionEvent): Boolean {
         val handled = super.dispatchHoverEvent(event)
         // Here the events are the window's own: entering, moving over and leaving the bar

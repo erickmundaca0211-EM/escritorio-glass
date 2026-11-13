@@ -5,7 +5,6 @@ import android.app.ActivityManager
 import android.app.TaskInfo
 import android.content.Context
 import android.content.pm.PackageManager
-import android.graphics.Rect
 import android.os.Binder
 import android.provider.Settings
 import android.util.DisplayMetrics
@@ -49,9 +48,11 @@ object PrivilegedActions {
         CLOSE_TASK,
 
         /**
-         * Send one window behind all the others, like minimizing it in Windows. Only from the user's
-         * click on its taskbar button, only a task id the system itself listed; the next click brings
-         * it back to the front (Shizuku).
+         * Send one window behind all the others, like minimizing it in Windows; a floating window is
+         * hidden where it is instead (HyperOS keeps them above everything). Only from the user's click
+         * on its taskbar button or Show desktop, only a task id the system itself listed; the next
+         * click brings it back to the front. Hidden windows are shown again when desktop mode starts
+         * or stops (Shizuku).
          */
         MINIMIZE_TASK,
 
@@ -73,9 +74,13 @@ object PrivilegedActions {
     /** Most windows the taskbar asks for at once. */
     private const val MAX_TASKS = 100
 
-    // WindowConfiguration windowing modes (hidden constants)
-    private const val WINDOWING_MODE_FULLSCREEN = 1
+    // WindowConfiguration windowing mode and activity type (hidden constants)
     private const val WINDOWING_MODE_FREEFORM = 5
+    private const val ACTIVITY_TYPE_HOME = 2
+
+    /** Our own state for these actions: only the ids of the floating windows we hid. */
+    private const val STATE_FILE = "privileged_state"
+    private const val KEY_HIDDEN_WINDOWS = "hidden_floating_windows"
 
     /** Settings.Secure key of Android's Night Light (hidden constant NIGHT_DISPLAY_ACTIVATED). */
     private const val NIGHT_DISPLAY_ACTIVATED = "night_display_activated"
@@ -184,28 +189,56 @@ object PrivilegedActions {
     fun closeTask(context: Context, taskId: Int): Boolean {
         if (!isAllowed(context, Action.CLOSE_TASK) || taskId <= 0) return false
         return try {
-            shizukuActivityManager()?.removeTask(taskId) ?: false
+            val closed = shizukuActivityManager()?.removeTask(taskId) ?: false
+            if (closed && hiddenWindows(context).remove(taskId)) saveHiddenWindows(context)
+            closed
         } catch (e: Exception) {
             Log.w(TAG, "privileged: closing task $taskId failed", e)
             false
         }
     }
 
-    /** Place and size of each floating window we minimized, to bring it back the same (task id key). */
-    private val minimizedFloating = HashMap<Int, Rect>()
+    /**
+     * Floating windows we hid to minimize them (task ids). They are also saved: a hidden window stays
+     * hidden if this app stops, so the next start shows it again ([showHiddenWindows]).
+     */
+    private val hiddenFloating = HashSet<Int>()
+    private var hiddenLoaded = false
 
-    /** Whether bringing [taskId] back makes it a floating window again (it was one when minimized). */
-    fun restoresFloating(taskId: Int) = minimizedFloating.containsKey(taskId)
+    @Synchronized
+    private fun hiddenWindows(context: Context): MutableSet<Int> {
+        if (!hiddenLoaded) {
+            hiddenLoaded = true
+            state(context).getStringSet(KEY_HIDDEN_WINDOWS, emptySet())!!
+                .mapNotNullTo(hiddenFloating) { it.toIntOrNull() }
+        }
+        return hiddenFloating
+    }
+
+    /** Written in the background (on a busy phone a direct write held the bar for seconds). */
+    private fun saveHiddenWindows(context: Context) {
+        state(context).edit()
+            .putStringSet(KEY_HIDDEN_WINDOWS, hiddenFloating.mapTo(HashSet()) { it.toString() }).apply()
+    }
+
+    private fun state(context: Context) = context.getSharedPreferences(STATE_FILE, Context.MODE_PRIVATE)
 
     fun minimizeTask(context: Context, taskId: Int): Boolean {
         if (!isAllowed(context, Action.MINIMIZE_TASK)) return false
         val (task, token, organizer) = listedTask(taskId) ?: return false
         return try {
+            // HyperOS keeps floating windows above everything else: they are hidden where they are
             val floating = windowingMode(task) == WINDOWING_MODE_FREEFORM
-            val bounds = if (floating) taskBounds(task) else null
-            organizer.sendToBack(token, fromFloating = bounds != null)
-            if (bounds != null) minimizedFloating[taskId] = bounds else minimizedFloating.remove(taskId)
-            Log.d(TAG, "privileged: task $taskId minimized (floating: ${bounds != null})")
+            val hidden = hiddenWindows(context)
+            if (floating) {
+                hidden += taskId
+                saveHiddenWindows(context)
+                organizer.setHidden(token, true)
+            } else {
+                organizer.sendToBack(token)
+                if (hidden.remove(taskId)) saveHiddenWindows(context)
+            }
+            Log.d(TAG, "privileged: task $taskId minimized (floating: $floating)")
             true
         } catch (e: Exception) {
             Log.w(TAG, "privileged: minimizing task $taskId failed", e)
@@ -217,15 +250,75 @@ object PrivilegedActions {
         if (!isAllowed(context, Action.RESTORE_TASK)) return false
         val (task, token, organizer) = listedTask(taskId) ?: return false
         return try {
-            // Floating again only if it is still the full-screen window we made of it
-            val bounds = minimizedFloating.remove(taskId)
-                ?.takeIf { windowingMode(task) == WINDOWING_MODE_FULLSCREEN }
-            organizer.bringToFront(taskId, token, bounds)
-            Log.d(TAG, "privileged: task $taskId restored (floating: ${bounds != null})")
+            // A floating window only changes place in the window stack (shown if we hid it): opened
+            // like from recents, HyperOS moves it elsewhere
+            val floating = windowingMode(task) == WINDOWING_MODE_FREEFORM
+            val hidden = hiddenWindows(context)
+            if (floating) organizer.showInFront(token) else organizer.bringToFront(taskId, token)
+            if (hidden.remove(taskId)) saveHiddenWindows(context)
+            Log.d(TAG, "privileged: task $taskId restored (floating: $floating)")
             true
         } catch (e: Exception) {
             Log.w(TAG, "privileged: restoring task $taskId failed", e)
             false
+        }
+    }
+
+    /**
+     * Shows again, where they are, the floating windows we hid: all of them (when desktop mode starts
+     * or stops, so none stays hidden after it), or only [packageName]'s (that app is being opened: it
+     * would come up hidden). Returns how many were shown.
+     */
+    fun showHiddenWindows(context: Context, packageName: String? = null): Int {
+        if (!isAllowed(context, Action.RESTORE_TASK)) return 0
+        val hidden = hiddenWindows(context)
+        if (hidden.isEmpty()) return 0
+        return try {
+            val organizer = shizukuWindowOrganizer() ?: return 0
+            val tasks = shizukuActivityManager()?.getRunningTasks(MAX_TASKS) ?: return 0
+            val shown = tasks.filter {
+                it.taskId in hidden && (packageName == null || it.baseActivity?.packageName == packageName)
+            }
+            shown.forEach { organizer.setHidden(taskToken(it), false) }
+            // Without a package, the ones not listed anymore were closed
+            if (packageName == null) hidden.clear() else hidden -= shown.map { it.taskId }.toSet()
+            saveHiddenWindows(context)
+            Log.d(TAG, "privileged: ${shown.size} hidden windows shown again")
+            shown.size
+        } catch (e: Exception) {
+            Log.w(TAG, "privileged: showing hidden windows failed", e)
+            0
+        }
+    }
+
+    /** Whether floating windows we hid are waiting to come back. */
+    fun hasHiddenWindows(context: Context) = hiddenWindows(context).isNotEmpty()
+
+    /**
+     * Shows the hidden floating windows that something else brought in front of the home screen: their
+     * app was opened from the HyperOS home, a notification or recents, and came up still hidden. Also
+     * forgets the ones closed meanwhile. Returns how many were shown.
+     */
+    fun showRaisedWindows(context: Context): Int {
+        if (!isAllowed(context, Action.RESTORE_TASK)) return 0
+        val hidden = hiddenWindows(context)
+        if (hidden.isEmpty()) return 0
+        return try {
+            val organizer = shizukuWindowOrganizer() ?: return 0
+            // Front one first; hiding a window sends it behind the home screen
+            val rootTasks = organizer.rootTasks(Display.DEFAULT_DISPLAY) ?: return 0
+            val home = rootTasks.indexOfFirst { activityType(it) == ACTIVITY_TYPE_HOME }
+            if (home < 0) return 0
+            val raised = rootTasks.take(home).filter { it.taskId in hidden }
+            raised.forEach { organizer.showInFront(taskToken(it)) }
+            val listed = rootTasks.flatMap { leafTaskIds(it).asList() }.toSet()
+            val shown = raised.map { it.taskId }.toSet()
+            if (hidden.removeAll { it in shown || it !in listed }) saveHiddenWindows(context)
+            if (raised.isNotEmpty()) Log.d(TAG, "privileged: ${raised.size} hidden windows opened elsewhere, shown")
+            raised.size
+        } catch (e: Exception) {
+            Log.w(TAG, "privileged: looking at hidden windows failed", e)
+            0
         }
     }
 
@@ -238,29 +331,34 @@ object PrivilegedActions {
         return try {
             val task = shizukuActivityManager()?.getRunningTasks(MAX_TASKS)
                 ?.firstOrNull { it.taskId == taskId } ?: return null
-            val token = ActivityManager.RunningTaskInfo::class.java.getField("token").get(task) ?: return null
             val organizer = shizukuWindowOrganizer() ?: return null
-            Triple(task, token, organizer)
+            Triple(task, taskToken(task), organizer)
         } catch (e: Exception) {
             Log.w(TAG, "privileged: task $taskId not reachable", e)
             null
         }
     }
 
-    private fun windowingMode(task: ActivityManager.RunningTaskInfo): Int = try {
-        ActivityManager.RunningTaskInfo::class.java.getMethod("getWindowingMode").invoke(task) as Int
+    /** The window token of a task the system listed (TaskInfo.token, hidden). */
+    private fun taskToken(task: TaskInfo): Any = TaskInfo::class.java.getField("token").get(task)!!
+
+    /** The windows inside a top-level one (RootTaskInfo.childTaskIds, hidden): itself for a floating window. */
+    private fun leafTaskIds(rootTask: TaskInfo): IntArray = try {
+        rootTask.javaClass.getField("childTaskIds").get(rootTask) as IntArray
+    } catch (_: Exception) {
+        intArrayOf(rootTask.taskId)
+    }
+
+    private fun activityType(task: TaskInfo): Int = try {
+        TaskInfo::class.java.getMethod("getActivityType").invoke(task) as Int
     } catch (_: Exception) {
         -1
     }
 
-    /** The window's place on screen (TaskInfo.configuration.windowConfiguration, hidden). */
-    private fun taskBounds(task: ActivityManager.RunningTaskInfo): Rect? = try {
-        val configuration = TaskInfo::class.java.getField("configuration").get(task)!!
-        val windowConfiguration = configuration.javaClass.getField("windowConfiguration").get(configuration)!!
-        (windowConfiguration.javaClass.getMethod("getBounds").invoke(windowConfiguration) as Rect)
-            .takeUnless { it.isEmpty }?.let { Rect(it) }
+    private fun windowingMode(task: ActivityManager.RunningTaskInfo): Int = try {
+        ActivityManager.RunningTaskInfo::class.java.getMethod("getWindowingMode").invoke(task) as Int
     } catch (_: Exception) {
-        null
+        -1
     }
 
     fun isNightDisplayOn(context: Context): Boolean = try {
