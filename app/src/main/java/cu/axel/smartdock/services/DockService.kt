@@ -175,6 +175,10 @@ private const val TASKBAR_MARGIN_BOTTOM_DP = 8
 private const val TASKBAR_ITEM_WIDTH_DP = 46 // 44 dp button + 2 dp gap, as in the mockup
 private const val KEY_AUTOHIDE_FULLSCREEN = "autohide_fullscreen"
 private const val KEY_BLOCK_SYSTEM_SHADE = "block_system_shade"
+private const val KEY_EDGE_SWIPE_SWITCHER = "edge_swipe_switcher"
+
+/** How far a finger must slide up from the bottom edge to count as the swipe. */
+private const val EDGE_SWIPE_DP = 40
 
 // Escritorio Glass Start menu (docs/DISENO.md, "Menú Inicio")
 private const val START_MENU_WIDTH_DP = 560
@@ -234,6 +238,11 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
 
     /** The switcher was opened with Alt+Tab: letting go of Alt switches to the selected window. */
     private var taskSwitcherByKeyboard = false
+
+    /** Swipe catcher on the bottom edge (see createEdgeSwipeStrip). */
+    private var edgeSwipeStrip: View? = null
+    private var imeVisible = false
+    private var screenOff = false
     private var calendarPanelVisible = false
     private var statusIcons: StatusIcons? = null
     private var trayOverflowWindow: View? = null
@@ -310,6 +319,9 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     // used, never what the windows show (CLAUDE.md).
     private var autoHidden = false
     private var autoHideSuppressed = false
+
+    /** Brought up by a swipe from the bottom edge over a full-screen app: the next touch elsewhere hides it. */
+    private var taskbarRevealedByTouch = false
     private val windowPackages = HashMap<Int, String>() // accessibility window id -> package
     private var homePackages = emptySet<String>()
     private val autoHideHandler = Handler(Looper.getMainLooper())
@@ -543,6 +555,9 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         ContextCompat.registerReceiver(
             this, unlockReceiver, IntentFilter(Intent.ACTION_USER_PRESENT), ContextCompat.RECEIVER_NOT_EXPORTED
         )
+        ContextCompat.registerReceiver(
+            this, screenOffReceiver, IntentFilter(Intent.ACTION_SCREEN_OFF), ContextCompat.RECEIVER_NOT_EXPORTED
+        )
 
         //Show the dock
         if (sharedPreferences.getBoolean("pin_dock", true))
@@ -550,6 +565,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         else
             Toast.makeText(context, R.string.start_message, Toast.LENGTH_LONG).show()
         updateSystemShadeBlock()
+        createEdgeSwipeStrip()
 
     }
 
@@ -699,6 +715,14 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         ) {
             autoHideHandler.removeCallbacks(fullscreenCheck)
             autoHideHandler.postDelayed(fullscreenCheck, FULLSCREEN_CHECK_DELAY_MS)
+        }
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED && edgeSwipeStrip != null &&
+            event.windowChanges and (AccessibilityEvent.WINDOWS_CHANGE_ADDED or
+                    AccessibilityEvent.WINDOWS_CHANGE_REMOVED) != 0
+        ) {
+            // The on-screen keyboard came or went: the edge strip must not cover its bottom row
+            imeVisible = windows.any { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD }
+            updateEdgeSwipeStrip()
         }
         if (!isPinned)
             return
@@ -1063,6 +1087,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     fun pinDock() {
         isPinned = true
         autoHidden = false
+        taskbarRevealedByTouch = false
         pinBtn.setImageResource(R.drawable.ic_pin)
         if (dockLayout.isGone)
             showDock()
@@ -1634,6 +1659,10 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         }
         if (preference == KEY_BLOCK_SYSTEM_SHADE) {
             updateSystemShadeBlock()
+            return
+        }
+        if (preference == KEY_EDGE_SWIPE_SWITCHER) {
+            updateEdgeSwipeStrip()
             return
         }
         if (preference == DesktopScale.KEY_APP_SCALE) {
@@ -2231,6 +2260,8 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
      */
     private val unlockReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
+            screenOff = false
+            updateEdgeSwipeStrip()
             val bar = dock ?: return
             if (bar.isVisible || keyguardManager.isKeyguardLocked) return
             if (isPinned || sharedPreferences.getString("activation_method", "swipe") == "swipe")
@@ -2666,6 +2697,81 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             activityManager.moveTaskToFront(task.id, 0)
     }
 
+    // ---- Swipe up from the bottom edge: in desktop mode it opens the window switcher instead of
+    // the system's recent apps, or brings back the taskbar hidden over a full-screen app
+
+    /**
+     * A thin strip on the bottom edge, under the floating taskbar. As an accessibility overlay it
+     * lies above the system's gesture zone, so a swipe up that starts on the edge reaches us first.
+     */
+    @SuppressLint("ClickableViewAccessibility")
+    private fun createEdgeSwipeStrip() {
+        if (edgeSwipeStrip != null) return
+        val strip = View(context)
+        val layoutParams = Utils.makeWindowParams(
+            WindowManager.LayoutParams.MATCH_PARENT, Utils.dpToPx(context, TASKBAR_MARGIN_BOTTOM_DP),
+            context, preferSecondaryDisplay, accessibilityWindow = true
+        )
+        layoutParams.gravity = Gravity.BOTTOM
+        // Down to the very edge, over the navigation (gesture) area
+        layoutParams.fitInsetsTypes = 0
+        val distance = Utils.dpToPx(context, EDGE_SWIPE_DP)
+        var startY = 0f
+        var done = false
+        strip.setOnTouchListener { _, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    startY = event.rawY
+                    done = false
+                }
+
+                MotionEvent.ACTION_MOVE -> if (!done && startY - event.rawY >= distance) {
+                    done = true
+                    onEdgeSwipe()
+                }
+            }
+            true
+        }
+        windowManager.addView(strip, layoutParams)
+        edgeSwipeStrip = strip
+        updateEdgeSwipeStrip()
+    }
+
+    /** The strip only stays where it can't get in the way: not on the lock screen, not over the keyboard. */
+    private fun updateEdgeSwipeStrip() {
+        val strip = edgeSwipeStrip ?: return
+        strip.isVisible = sharedPreferences.getBoolean(KEY_EDGE_SWIPE_SWITCHER, true) && !screenOff &&
+                !imeVisible && !keyguardManager.isKeyguardLocked
+    }
+
+    private fun onEdgeSwipe() {
+        Log.d("EG", "edge swipe (taskbar hidden: $autoHidden)")
+        if (autoHidden) {
+            // Over a full-screen app the taskbar is hidden: the swipe brings it up, like the mouse
+            // does, until the next touch on the app (hideTaskbarRevealedByTouch)
+            if (dockLayout.isGone) showDock()
+            taskbarRevealedByTouch = true
+        } else if (taskSwitcher == null) showTaskSwitcher(byKeyboard = false)
+    }
+
+    private fun hideTaskbarRevealedByTouch() {
+        if (!taskbarRevealedByTouch || !autoHidden) return
+        // Not while one of its panels is open: the touch may be on it
+        if (appMenuVisible || quickSettingsPanelVisible || powerMenuVisible || notificationCenterVisible ||
+            calendarPanelVisible || taskSwitcher != null
+        ) return
+        taskbarRevealedByTouch = false
+        hideDock(0, auto = true)
+    }
+
+    /** The lock screen is coming: the strip goes away before it (it would catch the swipe to unlock). */
+    private val screenOffReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            screenOff = true
+            updateEdgeSwipeStrip()
+        }
+    }
+
     /** Current notifications for the center: only shown, never stored or logged (CLAUDE.md). */
     private fun updateNotificationCenter() {
         val center = notificationCenter ?: return
@@ -2888,6 +2994,10 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     }
 
     override fun onTouch(view: View, motionEvent: MotionEvent): Boolean {
+        if (motionEvent.action == MotionEvent.ACTION_OUTSIDE) {
+            hideTaskbarRevealedByTouch()
+            return false
+        }
         gestureDetector.onTouchEvent(motionEvent)
         return false
     }
@@ -2911,9 +3021,15 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             unregisterReceiver(unlockReceiver)
         } catch (_: IllegalArgumentException) {
         }
+        try {
+            unregisterReceiver(screenOffReceiver)
+        } catch (_: IllegalArgumentException) {
+        }
         shizukuWindow?.view?.let { if (it.isAttachedToWindow) windowManager.removeViewImmediate(it) }
         taskSwitcher?.view?.let { if (it.isAttachedToWindow) windowManager.removeViewImmediate(it) }
         taskSwitcher = null
+        edgeSwipeStrip?.let { if (it.isAttachedToWindow) windowManager.removeViewImmediate(it) }
+        edgeSwipeStrip = null
         shizukuWindow = null
         statusIcons?.stop()
         statusIcons = null
@@ -3129,6 +3245,8 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         dockHeight = taskbarWindowHeight()
         dockLayoutParams =
             Utils.makeWindowParams(-1, dockHeight, context, preferSecondaryDisplay)
+        // A touch on the app hides the taskbar again when a swipe brought it up (onTouch)
+        dockLayoutParams.flags = dockLayoutParams.flags or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
         dockLayoutParams.screenOrientation =
             if (sharedPreferences.getBoolean("lock_landscape", false))
                 ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE

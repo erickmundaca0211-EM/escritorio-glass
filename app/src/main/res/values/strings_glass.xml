@@ -37,7 +37,9 @@
     <string name="app_scale_summary">Makes apps and windows smaller while the desktop is on, so more content fits. 100 = unchanged; your own scale comes back when the desktop turns off. The taskbar keeps its size.</string>
     <string name="app_scale_needs_permission">Needs the secure settings permission (Permissions, Optional)</string>
     <string name="autohide_fullscreen_title">Hide the taskbar over full-screen apps</string>
-    <string name="autohide_fullscreen_summary">It slides away after 1 second; move the mouse to the bottom edge to bring it back</string>
+    <string name="autohide_fullscreen_summary">It slides away after 1 second; to bring it back, move the mouse to the bottom edge or swipe up from it</string>
+    <string name="edge_swipe_switcher_title">Swipe up from the bottom for the window switcher</string>
+    <string name="edge_swipe_switcher_summary">In desktop mode a swipe up from the bottom edge shows the switcher (or the taskbar, when it is hidden) instead of the system\'s recent apps</string>
     <string name="block_system_shade_title">Block the system shade</string>
     <string name="block_system_shade_summary">In desktop mode the system\'s pull-down shade and quick settings stay closed; use the taskbar\'s instead (needs Shizuku)</string>
     <string name="start_search_hint">Search apps</string>

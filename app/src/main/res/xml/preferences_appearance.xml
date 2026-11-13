@@ -97,6 +97,12 @@
 
         <SwitchPreferenceCompat
             android:defaultValue="true"
+            android:key="edge_swipe_switcher"
+            android:summary="@string/edge_swipe_switcher_summary"
+            android:title="@string/edge_swipe_switcher_title" />
+
+        <SwitchPreferenceCompat
+            android:defaultValue="true"
             android:key="shizuku_reminder"
             android:summary="@string/shizuku_reminder_summary"
             android:title="@string/shizuku_reminder_title" />
