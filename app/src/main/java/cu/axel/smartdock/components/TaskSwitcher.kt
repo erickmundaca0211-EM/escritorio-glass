@@ -35,8 +35,8 @@ import kotlin.math.tan
  * in a row, most recently used first, and the name of the selected one below. The keyboard moves the
  * selection (DockService picks it when Alt is let go); a click on an icon picks that window at once.
  * When windows can be closed (Shizuku): an icon thrown up or down out of the row, straight or on a
- * diagonal, closes its window, like swiping away a recent app; the mouse also gets a × on the icon
- * under it; Supr closes the selected one and "Close all" closes them all at once.
+ * diagonal, closes its window, like swiping away a recent app (with the mouse, windows are closed from
+ * the taskbar); Supr closes the selected one and "Close all" closes them all at once.
  */
 class TaskSwitcher(
     private val context: Context,
@@ -56,8 +56,8 @@ class TaskSwitcher(
         fun dismiss(switcher: TaskSwitcher)
     }
 
-    /** A window in the row: its button and, when windows can be closed, its ×. */
-    private class Item(val task: AppTask, val view: FrameLayout, val closeButton: ImageView?)
+    /** A window in the row and its button. */
+    private class Item(val task: AppTask, val view: FrameLayout)
 
     val view: View = LayoutInflater.from(context).inflate(R.layout.task_switcher, null)
     val card: View = view.findViewById(R.id.switcher_card)
@@ -75,9 +75,6 @@ class TaskSwitcher(
 
     /** An icon is being pressed (and then opened or closed): the name below no longer follows the pointer. */
     private var labelLocked = false
-
-    /** The window whose × is being pressed. */
-    private var pressedClose: Item? = null
 
     /** The icon being thrown, where its press started on screen and how fast it moves. */
     private var thrown: Item? = null
@@ -98,12 +95,11 @@ class TaskSwitcher(
     /**
      * The pointer left an icon. A click also makes it leave for a moment (it comes back on release), and
      * going from one icon to the next crosses the gap between them: it only counts as gone after a
-     * moment, so neither the name nor the × blink.
+     * moment, so the name does not blink.
      */
     private val pointerLeft = Runnable {
         hovered = null
         if (!labelLocked) showSelectedName()
-        updateCloseButtons()
     }
 
     val selectedTask: AppTask? get() = items.getOrNull(selected)?.task
@@ -152,39 +148,18 @@ class TaskSwitcher(
             ImageView(context).apply { setImageDrawable(drawable) },
             FrameLayout.LayoutParams(iconSize, iconSize, Gravity.CENTER)
         )
-        // The × is drawn over the icon's corner but the icon's button handles it (by where the
-        // pointer is), so going over it does not take the mouse off the icon. Its red under the
-        // mouse is the activated state: marked hovered, the × would take the mouse and blink
-        val closeButton = if (!canClose) null else ImageView(context).apply {
-            setBackgroundResource(R.drawable.task_switcher_close_bg)
-            setImageResource(R.drawable.ic_eg_close)
-            val padding = Utils.dpToPx(context, CLOSE_PADDING_DP)
-            setPadding(padding, padding, padding, padding)
-            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-            visibility = View.INVISIBLE
-        }
-        if (closeButton != null) {
-            val closeSize = Utils.dpToPx(context, CLOSE_DP)
-            val margin = Utils.dpToPx(context, CLOSE_MARGIN_DP)
-            button.addView(
-                closeButton,
-                FrameLayout.LayoutParams(closeSize, closeSize, Gravity.TOP or Gravity.END).apply {
-                    topMargin = margin
-                    marginEnd = margin
-                }
-            )
-        }
-        val item = Item(task, button, closeButton)
+        val item = Item(task, button)
         // Raised over its neighbours while thrown on a diagonal, without a shadow
         button.outlineProvider = null
         button.setOnClickListener { host.switchTo(task) }
-        if (closeButton != null)
+        // No × on the icons: with the mouse, windows are closed from the taskbar
+        if (canClose)
             ViewCompat.addAccessibilityAction(button, context.getString(R.string.taskbar_close_window)) { _, _ ->
                 closeWindow(item)
                 true
             }
-        // With the mouse, the name below follows the window under the pointer, which also shows its ×;
-        // off the icons it goes back to the selected one
+        // With the mouse, the name below follows the window under the pointer; off the icons it goes
+        // back to the selected one
         button.setOnHoverListener { _, event ->
             when (event.actionMasked) {
                 MotionEvent.ACTION_HOVER_ENTER, MotionEvent.ACTION_HOVER_MOVE -> {
@@ -192,13 +167,10 @@ class TaskSwitcher(
                     if (hovered !== item) {
                         hovered = item
                         if (!labelLocked) label.text = task.name
-                        updateCloseButtons()
                     }
-                    closeButton?.isActivated = closeButton != null && onClose(closeButton, event)
                 }
 
                 MotionEvent.ACTION_HOVER_EXIT -> {
-                    closeButton?.isActivated = false
                     view.removeCallbacks(pointerLeft)
                     view.postDelayed(pointerLeft, LEAVE_DELAY_MS)
                 }
@@ -213,12 +185,6 @@ class TaskSwitcher(
                     view.removeCallbacks(pointerLeft)
                     labelLocked = true
                     label.text = task.name
-                    if (closeButton != null && onClose(closeButton, event)) {
-                        // The press is the ×'s, not the icon's
-                        pressedClose = item
-                        closeButton.isPressed = true
-                        return@setOnTouchListener true
-                    }
                     if (canClose) {
                         startTracking(event)
                         // The row waits to scroll until the press shows its way (drag)
@@ -227,21 +193,10 @@ class TaskSwitcher(
                 }
 
                 MotionEvent.ACTION_MOVE -> {
-                    if (pressedClose === item) {
-                        closeButton?.isPressed = closeButton != null && onClose(closeButton, event)
-                        return@setOnTouchListener true
-                    }
                     if (canClose && drag(item, event)) return@setOnTouchListener true
                 }
 
                 MotionEvent.ACTION_UP -> {
-                    if (pressedClose === item) {
-                        pressedClose = null
-                        val onIt = closeButton?.isPressed == true
-                        closeButton?.isPressed = false
-                        if (onIt) closeWindow(item) else releaseLabel()
-                        return@setOnTouchListener true
-                    }
                     if (thrown === item) {
                         letGo(item, event)
                         return@setOnTouchListener true
@@ -253,8 +208,6 @@ class TaskSwitcher(
                 }
 
                 MotionEvent.ACTION_CANCEL -> {
-                    pressedClose = null
-                    closeButton?.isPressed = false
                     if (thrown === item) {
                         thrown = null
                         backInPlace(item)
@@ -266,13 +219,6 @@ class TaskSwitcher(
             false
         }
         return item
-    }
-
-    /** Whether [event] (on the icon's button) falls on its ×. */
-    private fun onClose(closeButton: View, event: MotionEvent): Boolean {
-        if (!closeButton.isVisible) return false
-        return event.x >= closeButton.left && event.x <= closeButton.right &&
-                event.y >= closeButton.top && event.y <= closeButton.bottom
     }
 
     // ---- Throwing an icon out of the row (a finger's swipe up or down, like scrolling, straight or
@@ -374,11 +320,6 @@ class TaskSwitcher(
         if (over != null) label.text = over.task.name else showSelectedName()
     }
 
-    /** The × only shows on the window under the mouse; a finger throws the icon instead. */
-    private fun updateCloseButtons() {
-        items.forEach { it.closeButton?.visibility = if (it === hovered) View.VISIBLE else View.INVISIBLE }
-    }
-
     /**
      * Closes [item]'s window and takes it out of the row; the next one takes its place. A thrown icon
      * keeps going the way it was thrown (along [throwX], [throwY]); otherwise it shrinks away.
@@ -429,7 +370,6 @@ class TaskSwitcher(
         selected = Math.floorMod(index, items.size)
         items.forEachIndexed { i, item -> item.view.isSelected = i == selected }
         showSelectedName()
-        updateCloseButtons()
         scrollToSelected()
     }
 
@@ -449,9 +389,6 @@ class TaskSwitcher(
         const val ITEM_DP = 76
         const val ICON_DP = 46
         const val GAP_DP = 8
-        const val CLOSE_DP = 22
-        const val CLOSE_PADDING_DP = 5
-        const val CLOSE_MARGIN_DP = 3
         const val LEAVE_DELAY_MS = 150L
         const val CLOSE_ANIM_MS = 140L
         const val CLOSE_SCALE = 0.8f
