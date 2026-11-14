@@ -31,6 +31,13 @@
     <dimen name="glass_radius_window">12dp</dimen>
     <dimen name="glass_radius_button">10dp</dimen>
 
+    <!-- Own desktop: small icons like Windows, each in its cell -->
+    <dimen name="desktop_cell_width">84dp</dimen>
+    <dimen name="desktop_cell_height">92dp</dimen>
+    <dimen name="desktop_icon_size">44dp</dimen>
+    <!-- Between the icons or menus and the floating taskbar -->
+    <dimen name="desktop_taskbar_gap">8dp</dimen>
+
     <!-- Defaults (also hard-coded in GlassSettings) -->
     <integer name="glass_tint_opacity_default">62</integer>
     <integer name="glass_blur_radius_default">24</integer>

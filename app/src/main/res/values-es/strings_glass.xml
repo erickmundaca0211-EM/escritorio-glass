@@ -114,4 +114,10 @@
     <string name="taskbar_unpin">Desanclar de la barra de tareas</string>
     <string name="taskbar_close_window">Cerrar ventana</string>
     <string name="taskbar_close_windows">Cerrar todas las ventanas</string>
+
+    <!-- Escritorio propio (DesktopActivity) -->
+    <string name="desktop_open">Abrir</string>
+    <string name="desktop_app_info">Información de la app</string>
+    <string name="desktop_remove">Quitar del escritorio</string>
+    <string name="desktop_settings">Configuración de Escritorio Glass</string>
 </resources>

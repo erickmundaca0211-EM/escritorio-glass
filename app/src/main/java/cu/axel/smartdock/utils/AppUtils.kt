@@ -19,6 +19,7 @@ import android.view.Display
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.net.toUri
 import androidx.preference.PreferenceManager
+import cu.axel.smartdock.activities.DesktopActivity
 import cu.axel.smartdock.models.App
 import cu.axel.smartdock.models.AppTask
 import cu.axel.smartdock.models.DockApp
@@ -188,6 +189,10 @@ object AppUtils {
             ?: tasks.firstOrNull { it.isVisible && flag(taskTransparent, it) != true }
             ?: tasks.first()
 
+    /** Whether [task] is Escritorio Glass's own desktop (DesktopActivity), kept over the HyperOS home. */
+    fun isOwnDesktop(task: TaskInfo) =
+        task.baseActivity?.className == DesktopActivity::class.java.name
+
     /** [tasksInfo] comes from the system (system app) or from PrivilegedActions (Shizuku). */
     fun getRunningTasks(
         tasksInfo: List<ActivityManager.RunningTaskInfo>,
@@ -205,6 +210,9 @@ object AppUtils {
                         "com.google.android.packageinstaller"
                     ) || taskInfo.baseActivity!!.className == "com.android.quickstep.RecentsActivity"
                 ) continue
+
+                // The own desktop is the desktop, not a window
+                if (isOwnDesktop(taskInfo)) continue
 
                 //Hack to save Dock settings activity from being excluded
                 if (!(taskInfo.topActivity!!.className == "cu.axel.smartdock.activities.MainActivity" || taskInfo.topActivity!!.className == "cu.axel.smartdock.activities.DebugActivity") && taskInfo.topActivity!!.packageName == getCurrentLauncher(

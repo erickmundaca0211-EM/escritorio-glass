@@ -65,6 +65,18 @@
             </intent-filter>
         </activity>
         <activity android:name=".activities.DebugActivity" />
+        <!--
+            Own desktop: not a HOME screen (HyperOS would drop its gestures), an ordinary window that
+            DockService keeps right above the HyperOS home, in a task of its own out of recents
+        -->
+        <activity
+            android:name=".activities.DesktopActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:taskAffinity="${applicationId}.desktop"
+            android:theme="@style/AppTheme.Desktop" />
 
         <service
             android:name=".services.DockService"

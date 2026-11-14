@@ -7,6 +7,7 @@ import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.annotation.SuppressLint
 import android.app.ActivityManager
+import android.app.ActivityOptions
 import android.app.KeyguardManager
 import android.app.Notification
 import android.bluetooth.BluetoothAdapter
@@ -98,6 +99,7 @@ import com.google.android.material.tabs.TabLayout
 import cu.axel.smartdock.INotificationCallback
 import cu.axel.smartdock.INotificationServiceBridge
 import cu.axel.smartdock.R
+import cu.axel.smartdock.activities.DesktopActivity
 import cu.axel.smartdock.activities.LAUNCHER_ACTION
 import cu.axel.smartdock.activities.LAUNCHER_RESUMED
 import cu.axel.smartdock.activities.MainActivity
@@ -175,9 +177,19 @@ const val ACTION_LAUNCH_APP = "launch_app"
 const val DESKTOP_APP_PINNED = "desktop_app_pinned"
 const val DOCK_SERVICE_ACTION = "dock_service_action"
 
+/** Desktop mode is stopping: the own desktop (DesktopActivity) closes with it. */
+const val DESKTOP_CLOSE = "desktop_close"
+
+/** After the HyperOS home comes to the front, when to put the own desktop back over it. */
+private const val OWN_DESKTOP_DELAY_MS = 60L
+
 /** Escritorio Glass taskbar geometry (docs/DISENO.md). */
 private const val TASKBAR_MARGIN_BOTTOM_DP = 8
 private const val TASKBAR_ITEM_WIDTH_DP = 46 // 44 dp button + 2 dp gap, as in the mockup
+
+/** Taskbar window height in dp at the bar's own scale: the floating bar plus its bottom margin. */
+fun taskbarWindowHeightDp(sharedPreferences: SharedPreferences): Int =
+    (sharedPreferences.getString("dock_height", "50")!!.toIntOrNull() ?: 50) + TASKBAR_MARGIN_BOTTOM_DP
 private const val KEY_AUTOHIDE_FULLSCREEN = "autohide_fullscreen"
 private const val KEY_BLOCK_SYSTEM_SHADE = "block_system_shade"
 private const val KEY_EDGE_SWIPE_SWITCHER = "edge_swipe_switcher"
@@ -608,6 +620,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             Toast.makeText(context, R.string.start_message, Toast.LENGTH_LONG).show()
         updateSystemShadeBlock()
         showLeftoverHiddenWindows()
+        checkOwnDesktopAtStart()
         createEdgeSwipeStrip()
 
     }
@@ -753,8 +766,15 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
-        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED)
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             rememberForegroundApp(event)
+            // The HyperOS home came to the front: the own desktop goes back over it
+            val app = event.packageName?.toString()
+            if (app != null && app != packageName && app in homePackages) {
+                ownDesktopHandler.removeCallbacks(ownDesktopCheck)
+                ownDesktopHandler.postDelayed(ownDesktopCheck, OWN_DESKTOP_DELAY_MS)
+            }
+        }
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
             event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED
         ) {
@@ -1057,6 +1077,55 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     private fun rememberForegroundApp(event: AccessibilityEvent) {
         val app = event.packageName?.toString() ?: return
         if (event.windowId != -1) windowPackages[event.windowId] = app
+    }
+
+    // ---- Own desktop (DesktopActivity): a window kept right above the HyperOS home, so apps open over
+    // it and it shows when they go away. It is not the home screen: HyperOS would drop its gestures.
+
+    private val ownDesktopHandler = Handler(Looper.getMainLooper())
+
+    /** The HyperOS home is still the window in front a moment later: the own desktop covers it. */
+    private val ownDesktopCheck = Runnable {
+        val front = frontWindowPackage()
+        if (front != null && front != packageName && front in homePackages) showOwnDesktop()
+    }
+
+    /** Package of the app window in front (the active one), as its last window event named it. */
+    private fun frontWindowPackage(): String? {
+        val window = windows.firstOrNull {
+            it.type == AccessibilityWindowInfo.TYPE_APPLICATION && (it.isActive || it.isFocused)
+        } ?: return null
+        return windowPackages[window.id]
+    }
+
+    private var ownDesktopStartChecked = false
+
+    /**
+     * Desktop mode just started: if the HyperOS home is in front, the own desktop covers it now (no
+     * window event comes until something changes). Once, as soon as Shizuku tells the window in front.
+     */
+    private fun checkOwnDesktopAtStart() {
+        if (ownDesktopStartChecked ||
+            !PrivilegedActions.isAllowed(context, PrivilegedActions.Action.LIST_TASKS)
+        ) return
+        ownDesktopStartChecked = true
+        val tasks = PrivilegedActions.runningTasks(context, 3)
+        if (tasks.isEmpty()) return
+        val front = AppUtils.frontTask(tasks).baseActivity?.packageName ?: return
+        if (front != packageName && front in homePackages) showOwnDesktop()
+    }
+
+    private fun showOwnDesktop() {
+        Log.d("EG", "desktop: own desktop over the HyperOS home")
+        try {
+            startActivity(
+                Intent(this, DesktopActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION),
+                ActivityOptions.makeCustomAnimation(this, 0, 0).toBundle()
+            )
+        } catch (e: Exception) {
+            Log.w("EG", "desktop: own desktop could not open", e)
+        }
     }
 
     /** True when the app in front is not a launcher and its window covers the whole screen. */
@@ -1644,8 +1713,14 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
                         AppUtils.unpinApp(this, app.packageName, AppUtils.PINNED_LIST)
                     if (AppUtils.isPinned(this, app, AppUtils.DOCK_PINNED_LIST))
                         AppUtils.unpinApp(this, app.packageName, AppUtils.DOCK_PINNED_LIST)
-                    if (AppUtils.isPinned(this, app, AppUtils.DESKTOP_LIST))
+                    if (AppUtils.isPinned(this, app, AppUtils.DESKTOP_LIST)) {
                         AppUtils.unpinApp(this, app.packageName, AppUtils.DESKTOP_LIST)
+                        sendBroadcast(
+                            Intent(DOCK_SERVICE_ACTION)
+                                .setPackage(packageName)
+                                .putExtra("action", DESKTOP_APP_PINNED)
+                        )
+                    }
                     updateAppMenu()
                     loadFavoriteApps()
                     windowManager.removeView(view)
@@ -1822,10 +1897,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     }
 
     /** Window height: the floating bar plus its bottom margin (docs/DISENO.md). */
-    private fun taskbarWindowHeight(): Int {
-        val barHeight = sharedPreferences.getString("dock_height", "50")!!.toIntOrNull() ?: 50
-        return Utils.dpToPx(context, barHeight + TASKBAR_MARGIN_BOTTOM_DP)
-    }
+    private fun taskbarWindowHeight(): Int = Utils.dpToPx(context, taskbarWindowHeightDp(sharedPreferences))
 
     private fun updateDockHeight() {
         dockHeight = taskbarWindowHeight()
@@ -2375,6 +2447,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             hideShizukuSetup()
             updateSystemShadeBlock()
             showLeftoverHiddenWindows()
+            checkOwnDesktopAtStart()
             updateRunningTasks(force = true)
         } else {
             if (shizukuSetupActive) showShizukuSetup(status)
@@ -2994,7 +3067,8 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         val launcher = AppUtils.getCurrentLauncher(packageManager)
         return PrivilegedActions.runningTasks(context, MAX_SWITCHER_TASKS).filter {
             val app = it.baseActivity?.packageName
-            app != null && it.topActivity != null && app != launcher && app != "com.android.systemui"
+            app != null && it.topActivity != null && app != launcher && app != "com.android.systemui" &&
+                    !AppUtils.isOwnDesktop(it)
         }
     }
 
@@ -3003,8 +3077,9 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         if (appMenuVisible) hideAppMenu()
         hideTaskSwitcher()
         if (!PrivilegedActions.isAllowed(context, PrivilegedActions.Action.MINIMIZE_TASK)) {
-            // Without Shizuku: the system's home (HyperOS keeps floating windows over it)
-            performGlobalAction(GLOBAL_ACTION_HOME)
+            // Without Shizuku: the own desktop in front, like the system's home (HyperOS keeps floating
+            // windows over both); straight to it, the HyperOS home does not flash first
+            showOwnDesktop()
             return
         }
         val open = openWindows()
@@ -3288,6 +3363,9 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
                 !PrivilegedActions.setSystemShadeBlocked(this, false)
         // So do the floating windows Show desktop hid (else on the next start)
         PrivilegedActions.showHiddenWindows(this)
+        // And the own desktop: the HyperOS home is the home screen again
+        ownDesktopHandler.removeCallbacksAndMessages(null)
+        sendBroadcast(Intent(DOCK_SERVICE_ACTION).setPackage(packageName).putExtra("action", DESKTOP_CLOSE))
         //TODO: Unregister all receivers
         Shizuku.removeBinderReceivedListener(shizukuReceived)
         Shizuku.removeBinderDeadListener(shizukuDead)
@@ -3491,7 +3569,8 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             performNavAction("enable_nav_back")
             true
         }
-        homeBtn.setOnClickListener { performGlobalAction(GLOBAL_ACTION_HOME) }
+        // Home is the own desktop (straight to it: the HyperOS home does not flash first)
+        homeBtn.setOnClickListener { showOwnDesktop() }
         homeBtn.setOnLongClickListener {
             performNavAction("enable_nav_home")
             true

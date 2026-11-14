@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Escritorio Glass's own desktop (DesktopActivity): the wallpaper with small app icons in columns from
+    the top left, like Windows. The bottom padding, set in code from the taskbar height, keeps the icons
+    above the floating taskbar.
+-->
+<androidx.recyclerview.widget.RecyclerView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/desktop_icons"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:clipToPadding="false"
+    android:overScrollMode="never"
+    android:paddingStart="8dp"
+    android:paddingTop="8dp"
+    android:paddingEnd="8dp"
+    android:scrollbars="none" />

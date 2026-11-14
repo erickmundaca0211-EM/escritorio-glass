@@ -115,4 +115,10 @@
     <string name="taskbar_unpin">Unpin from taskbar</string>
     <string name="taskbar_close_window">Close window</string>
     <string name="taskbar_close_windows">Close all windows</string>
+
+    <!-- Own desktop (DesktopActivity) -->
+    <string name="desktop_open">Open</string>
+    <string name="desktop_app_info">App info</string>
+    <string name="desktop_remove">Remove from desktop</string>
+    <string name="desktop_settings">Escritorio Glass settings</string>
 </resources>

@@ -62,6 +62,22 @@
         <item name="android:windowLightStatusBar">false</item>
     </style>
 
+    <!--
+        Own desktop over the HyperOS home (DesktopActivity): the wallpaper under it, drawn under the
+        status bar, and no opening animation (it covers the HyperOS home as soon as that one shows up)
+    -->
+    <style name="AppTheme.Desktop" parent="AppTheme">
+        <item name="windowNoTitle">true</item>
+        <item name="windowActionBar">false</item>
+        <item name="android:windowShowWallpaper">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:windowDisablePreview">true</item>
+    </style>
+
     <style name="DialogTheme" parent="ThemeOverlay.Material3.MaterialAlertDialog">
         <item name="dialogCornerRadius">28dp</item>
         <item name="cornerFamily">rounded</item>

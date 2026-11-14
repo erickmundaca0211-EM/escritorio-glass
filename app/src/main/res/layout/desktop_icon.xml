@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    One app on the desktop: a small icon with its name below in white with a shadow, like Windows. The
+    highlight follows the mouse and the press.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="@dimen/desktop_cell_width"
+    android:layout_height="@dimen/desktop_cell_height"
+    android:background="@drawable/desktop_icon_bg"
+    android:focusable="true"
+    android:gravity="center_horizontal"
+    android:orientation="vertical"
+    android:paddingStart="4dp"
+    android:paddingTop="8dp"
+    android:paddingEnd="4dp">
+
+    <ImageView
+        android:id="@+id/desktop_icon_iv"
+        android:layout_width="@dimen/desktop_icon_size"
+        android:layout_height="@dimen/desktop_icon_size"
+        android:importantForAccessibility="no" />
+
+    <TextView
+        android:id="@+id/desktop_icon_tv"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="5dp"
+        android:breakStrategy="high_quality"
+        android:ellipsize="end"
+        android:hyphenationFrequency="normal"
+        android:gravity="center_horizontal"
+        android:maxLines="2"
+        android:shadowColor="#CC000000"
+        android:shadowDy="1"
+        android:shadowRadius="3"
+        android:textColor="@color/glass_text_primary"
+        android:textSize="12sp" />
+</LinearLayout>
