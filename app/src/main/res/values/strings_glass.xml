@@ -156,19 +156,17 @@
     <string name="welcome_install">Install</string>
     <string name="welcome_open">Open</string>
     <string name="welcome_adb">Secure settings (with a PC)</string>
-    <string name="welcome_adb_desc">Desktop scale, and desktop mode turned on from the app</string>
-    <string name="welcome_copy_command">Copy command</string>
-    <string name="welcome_command_copied">Command copied: run it on the PC with the phone connected</string>
+    <string name="welcome_adb_desc">Desktop scale. Needs a PC with ADB</string>
+    <string name="welcome_copy_command">Copy</string>
+    <string name="welcome_command_copied">Copied to the phone’s clipboard</string>
+    <string name="welcome_show_command">Show command</string>
+    <string name="welcome_adb_steps">1. On the phone, turn on “USB debugging” in Developer options.
+2. Connect it over USB to a PC that has ADB (Android Platform Tools).
+3. On the PC, open a terminal such as CMD or PowerShell and copy the following command:</string>
     <string name="welcome_done_title">All set</string>
     <string name="welcome_done_body">Desktop mode is on. Change the glass, the taskbar and the scale anytime in Escritorio Glass settings.</string>
     <string name="welcome_go_desktop">Go to the desktop</string>
     <string name="welcome_missing_title">Almost there</string>
     <string name="welcome_missing_body">Without “Display over other apps” and desktop mode turned on, Escritorio Glass cannot work.</string>
     <string name="welcome_exit">Exit</string>
-
-    <!-- Help and about: the fork's own source code and guide (GPL-3.0 asks for the source to be public) -->
-    <string name="project_url" translatable="false">https://github.com/erickmundaca0211-EM/escritorio-glass</string>
-    <string name="project_help_url" translatable="false">https://github.com/erickmundaca0211-EM/escritorio-glass#permisos</string>
-    <string name="source_code">Source code and guide</string>
-    <string name="source_code_summary">Escritorio Glass is free software (GPL-3.0): its code and its full guide are on GitHub</string>
 </resources>

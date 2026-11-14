@@ -155,17 +155,17 @@
     <string name="welcome_install">Instalar</string>
     <string name="welcome_open">Abrir</string>
     <string name="welcome_adb">Ajustes seguros (con una PC)</string>
-    <string name="welcome_adb_desc">Escala del escritorio y activar el modo escritorio desde la app</string>
-    <string name="welcome_copy_command">Copiar comando</string>
-    <string name="welcome_command_copied">Comando copiado: ejecútalo en la PC con el celular conectado</string>
+    <string name="welcome_adb_desc">Escala del escritorio. Necesita una PC con ADB</string>
+    <string name="welcome_copy_command">Copiar</string>
+    <string name="welcome_command_copied">Copiado en el portapapeles del celular</string>
+    <string name="welcome_show_command">Ver comando</string>
+    <string name="welcome_adb_steps">1. En el celular, activa «Depuración USB» en Opciones de desarrollador.
+2. Conéctalo por USB a una PC que tenga ADB (Android Platform Tools).
+3. En la PC, abre una terminal como CMD o PowerShell y copia el siguiente comando:</string>
     <string name="welcome_done_title">Todo listo</string>
     <string name="welcome_done_body">El modo escritorio está activado. Cambia el vidrio, la barra y la escala cuando quieras en la configuración de Escritorio Glass.</string>
     <string name="welcome_go_desktop">Ir al escritorio</string>
     <string name="welcome_missing_title">Falta poco</string>
     <string name="welcome_missing_body">Sin «Mostrar sobre otras apps» y el modo escritorio activado, Escritorio Glass no puede funcionar.</string>
     <string name="welcome_exit">Salir</string>
-
-    <!-- Ayuda y acerca de: código fuente y guía propios del fork -->
-    <string name="source_code">Código fuente y guía</string>
-    <string name="source_code_summary">Escritorio Glass es software libre (GPL-3.0): su código y su guía completa están en GitHub</string>
 </resources>

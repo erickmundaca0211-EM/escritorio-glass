@@ -9,6 +9,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
@@ -34,6 +35,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.core.view.updatePadding
 import androidx.preference.PreferenceManager
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import cu.axel.smartdock.R
 import cu.axel.smartdock.glass.GlassSurface
 import cu.axel.smartdock.services.NotificationService
@@ -180,6 +182,18 @@ class WelcomeActivity : AppCompatActivity() {
         Step.RESTRICTED -> !accessibilityLocked() || DeviceUtils.isAccessibilityServiceEnabled(this)
         Step.ACCESSIBILITY -> DeviceUtils.isAccessibilityServiceEnabled(this)
         else -> true
+    }
+
+    /**
+     * The usage access itself: "Recomendado" in Start reads it directly, so Shizuku being on does not
+     * count here (DeviceUtils.hasRecentAppsPermission does count it, for the taskbar).
+     */
+    private fun hasUsageAccess(): Boolean = try {
+        getSystemService(AppOpsManager::class.java).unsafeCheckOpNoThrow(
+            AppOpsManager.OPSTR_GET_USAGE_STATS, applicationInfo.uid, packageName
+        ) == AppOpsManager.MODE_ALLOWED
+    } catch (_: Exception) {
+        false
     }
 
     /** Android 13+ keeps accessibility from an app installed from an APK file until the user allows it. */
@@ -331,7 +345,7 @@ class WelcomeActivity : AppCompatActivity() {
         ) { openNotificationAccess() }
         addExtra(
             R.drawable.ic_usage_stats, R.string.welcome_usage, R.string.welcome_usage_desc,
-            DeviceUtils.hasRecentAppsPermission(this), R.string.welcome_allow
+            hasUsageAccess(), R.string.welcome_allow
         ) {
             if (!open(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS, "package:$packageName".toUri())))
                 open(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
@@ -358,8 +372,8 @@ class WelcomeActivity : AppCompatActivity() {
         }
         addExtra(
             R.drawable.ic_adb, R.string.welcome_adb, R.string.welcome_adb_desc,
-            DeviceUtils.hasWriteSettingsPermission(this), R.string.welcome_copy_command
-        ) { copyAdbCommand() }
+            DeviceUtils.hasWriteSettingsPermission(this), R.string.welcome_show_command
+        ) { showAdbCommand() }
     }
 
     private fun addExtra(
@@ -389,12 +403,32 @@ class WelcomeActivity : AppCompatActivity() {
         if (!open(detail)) open(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
     }
 
-    /** The one command a computer runs to grant WRITE_SECURE_SETTINGS (CLAUDE.md, "Comandos"). */
-    private fun copyAdbCommand() {
+    /**
+     * How a computer grants WRITE_SECURE_SETTINGS (CLAUDE.md, "Comandos"): the steps and the command on
+     * screen to type it there, since the phone's clipboard does not reach the PC; "Copiar" still serves
+     * whoever syncs the clipboard.
+     */
+    private fun showAdbCommand() {
         val command = "adb shell pm grant $packageName ${Manifest.permission.WRITE_SECURE_SETTINGS}"
-        getSystemService(ClipboardManager::class.java)
-            .setPrimaryClip(ClipData.newPlainText(getString(R.string.welcome_adb), command))
-        Toast.makeText(this, R.string.welcome_command_copied, Toast.LENGTH_LONG).show()
+        val side = Utils.dpToPx(this, 24)
+        val commandView = TextView(this).apply {
+            text = command
+            typeface = Typeface.MONOSPACE
+            textSize = 13f
+            setTextIsSelectable(true)
+            setPadding(side, Utils.dpToPx(this@WelcomeActivity, 4), side, 0)
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.welcome_adb)
+            .setMessage(R.string.welcome_adb_steps)
+            .setView(commandView)
+            .setPositiveButton(R.string.close, null)
+            .setNeutralButton(R.string.welcome_copy_command) { _, _ ->
+                getSystemService(ClipboardManager::class.java)
+                    .setPrimaryClip(ClipData.newPlainText(getString(R.string.welcome_adb), command))
+                Toast.makeText(this, R.string.welcome_command_copied, Toast.LENGTH_LONG).show()
+            }
+            .show()
     }
 
     private fun open(intent: Intent): Boolean = try {

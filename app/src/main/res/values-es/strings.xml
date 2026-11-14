@@ -23,7 +23,7 @@
     <string name="recent_apps">Apps recientes</string>
     <string name="recent_apps_desc">Permite mostrar aplicaciones recientes en el dock</string>
     <string name="notification_access">Acceso a notificaciones</string>
-    <string name="notification_access_desc">Se utiliza para mostrar notificaciones. Si se muestra un error sobre <b>Ajuste restringido</b> haga click en el botón de Ayuda</string>
+    <string name="notification_access_desc">Se usa para mostrar y descartar tus notificaciones. Si Android dice que es una configuración restringida: Ajustes &gt; Apps &gt; Escritorio Glass &gt; ⋮ &gt; «Permitir configuración restringida», y vuelve a intentarlo.</string>
     <string name="storage">Almacenamiento</string>
     <string name="storage_desc">Se utiliza para cambiar el icono del menú y los sonidos de los eventos.</string>
     <string name="overlays_in_settings">Permitir superposición en Ajustes</string>
@@ -257,9 +257,7 @@
     \n
     \nCon Shizuku, además, minimiza, restaura y cierra ventanas, y mantiene cerrada la cortina del sistema.
     \n
-    \nSi la barra desaparece, desactiva y vuelve a activar Escritorio Glass en Accesibilidad. Si la pantalla quedó con otra escala, vuelve al tamaño de siempre en Ajustes > Pantalla.
-    \n
-    \nEn «Más ayuda» está la guía completa del proyecto.</string>
+    \nSi la barra desaparece, desactiva y vuelve a activar Escritorio Glass en Accesibilidad. Si la pantalla quedó con otra escala, vuelve al tamaño de siempre en Ajustes > Pantalla.</string>
     <string name="more_help">Más ayuda</string>
     <string name="contributors">Colaboradores</string>
     <string name="tap_to_see_the_list_of_great_p">Toque para ver la lista de grandes personas que han contribuido a Smart Dock</string>
