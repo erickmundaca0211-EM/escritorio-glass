@@ -281,7 +281,9 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     private var notificationCenterWindow: View? = null
     private var notificationCenterVisible = false
     private var calendarPanel: CalendarPanel? = null
-    private var calendarPanelWindow: View? = null
+
+    /** The bar's context the calendar was made with: a new one (other scale) makes it again. */
+    private var calendarPanelContext: Context? = null
     private var taskSwitcher: TaskSwitcher? = null
 
     /** The switcher was opened with Alt+Tab: letting go of Alt switches to the selected window. */
@@ -367,6 +369,10 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     private lateinit var startAvatarIv: ImageView
     private lateinit var startAvatarInitialTv: TextView
     private var installedApps: List<App> = emptyList()
+
+    /** What Start shows now ("component|label"), so opening it rebuilds nothing that did not change. */
+    private var shownPinnedApps: List<String>? = null
+    private var shownRecentApps: List<String>? = null
     private var showAllRecent = false
     private var startSearching = false
     private lateinit var wifiManager: WifiManager
@@ -1471,12 +1477,24 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
             withContext(Dispatchers.Main) {
                 if (appMenu == null) return@withContext
                 val shown = if (showAllRecent) recent else recent.take(START_RECENT_DEFAULT)
-                recentLv.adapter = RecentAppsAdapter(context, shown, this@DockService, iconPackUtils)
-                recentLv.isVisible = shown.isNotEmpty()
-                recentEmptyTv.isVisible = shown.isEmpty()
+                // Same apps with the same "hace X min": the list stays as it is (no relayout while it opens)
+                val rows = shown.map { "${it.app.packageName}|${StartMenuUtils.relativeTime(context, it.lastUsed)}" }
+                if (recentLv.adapter == null || rows != shownRecentApps) {
+                    shownRecentApps = rows
+                    val adapter = recentLv.adapter as? RecentAppsAdapter
+                    // Same number of rows (often only a time changed): bind them again, keep the layout
+                    if (adapter != null && adapter.itemCount == shown.size && shown.isNotEmpty())
+                        adapter.update(shown)
+                    else {
+                        recentLv.adapter = RecentAppsAdapter(context, shown, this@DockService, iconPackUtils)
+                        recentLv.isVisible = shown.isNotEmpty()
+                        recentEmptyTv.isVisible = shown.isEmpty()
+                        fitPinnedRows()
+                    }
+                }
                 moreRecentBtn.isVisible = recent.size > START_RECENT_DEFAULT
-                moreRecentBtn.setText(if (showAllRecent) R.string.start_less else R.string.start_more)
-                fitPinnedRows()
+                val more = getString(if (showAllRecent) R.string.start_less else R.string.start_more)
+                if (moreRecentBtn.text.toString() != more) moreRecentBtn.text = more
             }
         }
     }
@@ -1576,13 +1594,21 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
                 .sortedWith { a, b -> collator.compare(a.name, b.name) }
 
             withContext(Dispatchers.Main) {
+                val firstLoad = installedApps.isEmpty()
+                val unchanged = apps.size == installedApps.size && apps.indices.all {
+                    apps[it].packageName == installedApps[it].packageName &&
+                            apps[it].componentName == installedApps[it].componentName &&
+                            apps[it].name == installedApps[it].name
+                }
                 installedApps = apps
                 val existingAdapter = appsGv.adapter
-                if (existingAdapter is AppListAdapter && !recreateAdapter)
-                    existingAdapter.updateApps(apps)
-                else
+                // The A-Z list is hidden while Start opens: touching it then would relayout the whole menu
+                if (existingAdapter is AppListAdapter && !recreateAdapter) {
+                    if (!unchanged) existingAdapter.updateApps(apps)
+                } else
                     appsGv.adapter = AppListAdapter(context, apps, this@DockService, iconPackUtils)
-                if (appMenuVisible) loadRecentApps()
+                // The recent apps come from this list: the first time it arrives after Start opened
+                if (appMenuVisible && firstLoad) loadRecentApps()
             }
         }
     }
@@ -1838,7 +1864,7 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
 
             updateRunningTasks(true)
             updateAppMenu(true)
-            loadFavoriteApps()
+            loadFavoriteApps(force = true)
         } else if (preference == "tint_indicators" || preference == "glass_accent") {
             updateRunningTasks(true)
             updateMenuIcon()
@@ -2704,26 +2730,47 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     }
 
     private fun hideCalendarPanel() {
-        val window = calendarPanelWindow
         val panel = calendarPanel
-        if (window != null && panel != null && window.isAttachedToWindow)
-            PanelAnimator.hide(window, listOf(panel.card)) {
-                if (window.isAttachedToWindow) windowManager.removeViewImmediate(window)
+        if (panel != null && panel.view.isAttachedToWindow)
+            PanelAnimator.hide(panel.view, listOf(panel.card)) {
+                if (!calendarPanelVisible && panel.view.isAttachedToWindow)
+                    windowManager.removeViewImmediate(panel.view)
             }
-        calendarPanelWindow = null
-        calendarPanel = null
         calendarPanelVisible = false
         clockArea.isActivated = false
     }
 
-    /** Calendar flyout of the clock: one glass card above the taskbar, on the right. */
+    /**
+     * The calendar flyout, made once and kept while the bar keeps its context: building its 49 cells on
+     * every open made it stutter.
+     */
     @SuppressLint("ClickableViewAccessibility")
-    private fun showCalendarPanel() {
-        hideFlyouts()
-        if (appMenuVisible) hideAppMenu()
+    private fun calendarPanel(): CalendarPanel {
+        calendarPanel?.let { old ->
+            if (calendarPanelContext === context) return old
+            if (old.view.isAttachedToWindow) windowManager.removeViewImmediate(old.view)
+        }
         val panel = CalendarPanel(
             ContextThemeWrapper(context, R.style.AppTheme_Dock), sharedPreferences, calendarPanelHost
         )
+        // A touch outside closes it, except on the taskbar below (its buttons act on their own)
+        panel.view.setOnTouchListener { view, event ->
+            if (event.action == MotionEvent.ACTION_OUTSIDE && calendarPanelVisible &&
+                event.y < view.measuredHeight
+            ) hideCalendarPanel()
+            false
+        }
+        calendarPanel = panel
+        calendarPanelContext = context
+        return panel
+    }
+
+    /** Calendar flyout of the clock: one glass card above the taskbar, on the right. */
+    private fun showCalendarPanel() {
+        hideFlyouts()
+        if (appMenuVisible) hideAppMenu()
+        val panel = calendarPanel()
+        panel.showToday()
         val bounds = DeviceUtils.getDisplayBounds(context, Display.DEFAULT_DISPLAY)
         val side = Utils.dpToPx(context, PANEL_SIDE_MARGIN_DP)
         val layoutParams = Utils.makeWindowParams(
@@ -2736,17 +2783,11 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         layoutParams.x = side
         layoutParams.y = dockHeight + Utils.dpToPx(context, START_MENU_GAP_DP)
         ColorUtils.applyMainColor(context, sharedPreferences, panel.card, GlassSurface.PANEL)
-        // A touch outside closes it, except on the taskbar below (its buttons act on their own)
-        panel.view.setOnTouchListener { view, event ->
-            if (event.action == MotionEvent.ACTION_OUTSIDE && calendarPanelVisible &&
-                event.y < view.measuredHeight
-            ) hideCalendarPanel()
-            false
-        }
+        // Still fading out from the last close: take that window away first
+        PanelAnimator.cancel(panel.view)
+        if (panel.view.isAttachedToWindow) windowManager.removeViewImmediate(panel.view)
         windowManager.addView(panel.view, layoutParams)
         PanelAnimator.show(panel.view, listOf(panel.card))
-        calendarPanelWindow = panel.view
-        calendarPanel = panel
         calendarPanelVisible = true
         clockArea.isActivated = true
     }
@@ -3263,12 +3304,24 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     }
 
     /** "Ancladas" of the Start menu (pinned.lst, kept across restarts). */
-    private fun loadFavoriteApps() {
-        val apps = AppUtils.getPinnedApps(context, AppUtils.PINNED_LIST)
-        favoritesGv.adapter = PinnedAppsAdapter(context, apps, this, iconPackUtils)
-        favoritesGv.isVisible = apps.isNotEmpty()
-        pinnedEmptyTv.isVisible = apps.isEmpty()
-        fitPinnedRows()
+    /**
+     * Pinned apps of Start. Reading them (label and icon of each app) was the slowest part of opening the
+     * menu, so it happens away from the main thread, and the grid is only rebuilt when they changed.
+     */
+    private fun loadFavoriteApps(force: Boolean = false) {
+        CoroutineScope(Dispatchers.Default).launch {
+            val apps = AppUtils.getPinnedApps(context, AppUtils.PINNED_LIST)
+            withContext(Dispatchers.Main) {
+                if (appMenu == null) return@withContext
+                val shown = apps.map { "${it.componentName ?: it.packageName}|${it.name}" }
+                if (!force && favoritesGv.adapter != null && shown == shownPinnedApps) return@withContext
+                shownPinnedApps = shown
+                favoritesGv.adapter = PinnedAppsAdapter(context, apps, this@DockService, iconPackUtils)
+                favoritesGv.isVisible = apps.isNotEmpty()
+                pinnedEmptyTv.isVisible = apps.isEmpty()
+                fitPinnedRows()
+            }
+        }
     }
 
     /**
@@ -3669,6 +3722,8 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
     private fun createAppMenu() {
         appMenu = LayoutInflater.from(ContextThemeWrapper(context, R.style.AppTheme_Dock))
             .inflate(R.layout.start_menu, null) as LinearLayout
+        shownPinnedApps = null
+        shownRecentApps = null
         val menu = appMenu!!
         searchEntry = menu.findViewById(R.id.search_entry)
         searchEt = menu.findViewById(R.id.menu_et)
@@ -3721,6 +3776,8 @@ class DockService : AccessibilityService(), OnSharedPreferenceChangeListener, On
         }
 
         updateAppMenu()
+        // Ready before the first time Start opens
+        loadFavoriteApps()
 
         // A touch outside closes the menu, except on the taskbar below it (its buttons act on their own)
         menu.setOnTouchListener { view, event ->

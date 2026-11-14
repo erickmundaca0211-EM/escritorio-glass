@@ -185,10 +185,16 @@ class AppListAdapter(
 /** "Recomendado": recently used apps as tiles with "when" under the name. */
 class RecentAppsAdapter(
     private val context: Context,
-    private val apps: List<StartMenuUtils.RecentApp>,
+    private var apps: List<StartMenuUtils.RecentApp>,
     private val listener: AppAdapter.OnAppClickListener,
     private val iconPackUtils: IconPackUtils?
 ) : RecyclerView.Adapter<RecentAppsAdapter.ViewHolder>() {
+
+    /** As many apps as before, so the same rows are only bound again (nothing is inflated while Start opens). */
+    fun update(sameSizeApps: List<StartMenuUtils.RecentApp>) {
+        apps = sameSizeApps
+        notifyItemRangeChanged(0, apps.size)
+    }
 
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val iconIv: ImageView = itemView.findViewById(R.id.app_icon_iv)

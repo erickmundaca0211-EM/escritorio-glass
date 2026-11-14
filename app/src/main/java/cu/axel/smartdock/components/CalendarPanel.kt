@@ -27,7 +27,7 @@ import java.util.Locale
  */
 class CalendarPanel(
     private val context: Context,
-    sharedPreferences: SharedPreferences,
+    private val sharedPreferences: SharedPreferences,
     private val host: Host
 ) {
     interface Host {
@@ -37,7 +37,6 @@ class CalendarPanel(
     val view: View = LayoutInflater.from(context).inflate(R.layout.calendar_panel, null)
     val card: View = view.findViewById(R.id.cal_card)
 
-    private val accent = ColorUtils.getAccentColor(sharedPreferences)
     private val shownMonth: Calendar = Calendar.getInstance().apply { set(Calendar.DAY_OF_MONTH, 1) }
     private val dayCells = ArrayList<TextView>()
 
@@ -85,6 +84,13 @@ class CalendarPanel(
         renderMonth()
     }
 
+    /** The panel is made once and kept: each time it opens it goes back to today's month. */
+    fun showToday() {
+        val today = Calendar.getInstance()
+        shownMonth.set(today.get(Calendar.YEAR), today.get(Calendar.MONTH), 1)
+        renderMonth()
+    }
+
     private fun moveMonth(delta: Int) {
         shownMonth.add(Calendar.MONTH, delta)
         renderMonth()
@@ -102,6 +108,7 @@ class CalendarPanel(
         val offset = shownMonth.get(Calendar.DAY_OF_WEEK) - Calendar.SUNDAY
         val days = shownMonth.getActualMaximum(Calendar.DAY_OF_MONTH)
         val rows = (offset + days + 6) / 7
+        val accent = ColorUtils.getAccentColor(sharedPreferences)
         val onAccent = ContextCompat.getColor(context, R.color.on_accent)
         val primary = ContextCompat.getColor(context, R.color.glass_text_primary)
         dayCells.forEachIndexed { index, cell ->

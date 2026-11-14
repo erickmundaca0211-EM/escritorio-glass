@@ -4,6 +4,7 @@ import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.view.View
+import android.view.ViewTreeObserver
 import android.view.animation.PathInterpolator
 import cu.axel.smartdock.R
 import kotlin.math.roundToInt
@@ -20,14 +21,40 @@ object PanelAnimator {
     private const val HIDE_MS = 140L
     private const val RISE_DP = 14
 
+    /** Longest wait for a new window's first frame before the opening motion starts anyway. */
+    private const val FIRST_FRAME_WAIT_MS = 120L
+
     /** Fast start and a long, soft landing. */
     private val showCurve = PathInterpolator(0.05f, 0.7f, 0.1f, 1f)
 
     /** Slow start, quick exit. */
     private val hideCurve = PathInterpolator(0.3f, 0f, 0.8f, 0.15f)
 
-    fun show(view: View, glass: List<View> = listOf(view)) =
-        animate(view, glass, 0f, 1f, SHOW_MS, showCurve, null)
+    /**
+     * Opens [view] once its window has drawn the first frame. A panel added in a new window spends
+     * that frame building everything (36 ms for Start on the POCO, plus the wait for the surface):
+     * started right away, the motion lost its first quarter there and the panel popped in. Until it
+     * starts the panel is fully transparent; it starts [FIRST_FRAME_WAIT_MS] later at the latest.
+     */
+    fun show(view: View, glass: List<View> = listOf(view)) {
+        val animator = animate(view, glass, 0f, 1f, SHOW_MS, showCurve, null, start = false)
+        var started = false
+        val start = Runnable {
+            // A hide() or another show() since then replaced this motion
+            if (started || view.getTag(R.id.panel_animator) !== animator) return@Runnable
+            started = true
+            animator.start()
+        }
+        view.viewTreeObserver.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
+            override fun onPreDraw(): Boolean {
+                view.viewTreeObserver.removeOnPreDrawListener(this)
+                // After this frame: the first step of the motion is the next one
+                view.post(start)
+                return true
+            }
+        })
+        view.postDelayed(start, FIRST_FRAME_WAIT_MS)
+    }
 
     /**
      * Runs [onEnd] once the panel is invisible; it is skipped if [show] starts again before that.
@@ -45,8 +72,8 @@ object PanelAnimator {
 
     private fun animate(
         view: View, glass: List<View>, from: Float, to: Float, duration: Long,
-        curve: PathInterpolator, onEnd: (() -> Unit)?
-    ) {
+        curve: PathInterpolator, onEnd: (() -> Unit)?, start: Boolean = true
+    ): Animator {
         cancel(view)
         val rise = Utils.dpToPx(view.context, RISE_DP).toFloat()
         val animator = ValueAnimator.ofFloat(from, to)
@@ -68,7 +95,8 @@ object PanelAnimator {
         })
         view.setTag(R.id.panel_animator, animator)
         apply(view, glass, from, rise)
-        animator.start()
+        if (start) animator.start()
+        return animator
     }
 
     private fun apply(view: View, glass: List<View>, progress: Float, rise: Float) {

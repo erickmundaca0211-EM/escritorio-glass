@@ -136,6 +136,11 @@ la barra que se esconde solo con apps a pantalla completa.
 - Animaciones (resortes suaves), respuesta háptica, pantalla de bienvenida que guía permisos
   (configuración restringida, accesibilidad, ADB/Shizuku).
 - Rendimiento: medir con el vidrio en Máxima; sin tirones al abrir el menú.
+  Medido en el POCO (2026-11-14, `dumpsys gfxinfo framestats` y `atrace`; «Máxima» aún no cambia nada frente a
+  «Estándar»): el primer cuadro de cada panel nuevo cuesta 29–96 ms (ventana nueva, se dibuja entero). Ahora la
+  animación empieza después de ese cuadro (`PanelAnimator.show`), Inicio ya no recarga apps ni íconos al abrirse
+  si no cambiaron y el calendario se crea una sola vez: Inicio y el calendario abren sin perder cuadros y el
+  centro de notificaciones pierde uno.
 - README del fork (qué es, créditos, licencia, cómo compilar), APK release firmado con la clave de Daniel.
 
 **Aceptación:** una semana de uso diario sin cierres inesperados; el APK release no tiene permiso de internet.
