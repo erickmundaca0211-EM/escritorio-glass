@@ -151,6 +151,7 @@ import android.provider.CalendarContract
 import android.text.format.DateFormat
 import java.util.Locale
 import kotlin.math.max
+import kotlin.math.roundToInt
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.content.res.ColorStateList
@@ -190,6 +191,15 @@ private const val TASKBAR_ITEM_WIDTH_DP = 46 // 44 dp button + 2 dp gap, as in t
 /** Taskbar window height in dp at the bar's own scale: the floating bar plus its bottom margin. */
 fun taskbarWindowHeightDp(sharedPreferences: SharedPreferences): Int =
     (sharedPreferences.getString("dock_height", "50")!!.toIntOrNull() ?: 50) + TASKBAR_MARGIN_BOTTOM_DP
+
+/**
+ * Pixels an ordinary window keeps free at the bottom for the floating taskbar: the bar keeps a scale of
+ * its own (DesktopScale.barDensity), so the window's own dp would fall short.
+ */
+fun taskbarClearancePx(context: Context, sharedPreferences: SharedPreferences): Int {
+    val barDensity = DesktopScale.barDensity(sharedPreferences) ?: context.resources.configuration.densityDpi
+    return (taskbarWindowHeightDp(sharedPreferences) * barDensity / 160f).roundToInt()
+}
 private const val KEY_AUTOHIDE_FULLSCREEN = "autohide_fullscreen"
 private const val KEY_BLOCK_SYSTEM_SHADE = "block_system_shade"
 private const val KEY_EDGE_SWIPE_SWITCHER = "edge_swipe_switcher"

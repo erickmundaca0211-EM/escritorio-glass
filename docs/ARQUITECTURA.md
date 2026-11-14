@@ -22,7 +22,8 @@ MainActivity (ajustes y permisos) ── SharedPreferences ──▶ DockService
 | Componente | Tipo | Exportado | Qué hace |
 |---|---|---|---|
 | `App` | `Application` | — | Aplica colores dinámicos y captura errores no controlados: guarda un informe y abre `DebugActivity` un segundo después. |
-| `activities/MainActivity` | Actividad `LAUNCHER` | Sí (obligatorio) | Pantalla de ajustes (`PreferencesFragment` + fragmentos de `fragments/`) y diálogo de permisos. |
+| `activities/MainActivity` | Actividad `LAUNCHER` | Sí (obligatorio) | Pantalla de ajustes (`PreferencesFragment` + fragmentos de `fragments/`). La primera vez abre la bienvenida; después, solo lo que le falte al modo escritorio. Empieza con el diseño «Escritorio» (`DockLayoutDialog.applyLayout`). |
+| `activities/WelcomeActivity` | Actividad, sin exportar | No | **Bienvenida** (Fase 6, paso 8): tarjeta de vidrio sobre el fondo de pantalla que guía paso a paso: mostrar sobre otras apps, configuración restringida (solo si la app vino de un APK: operación `android:access_restricted_settings` en `MODE_ERRORED`), accesibilidad y opcionales (notificaciones, uso de apps, calendario, Shizuku y el comando ADB de `WRITE_SECURE_SETTINGS`). Cada paso dice si ya está hecho; el menú «Administrar permisos» la abre en lo primero que falte. Reemplaza el diálogo de permisos de Smart Dock. |
 | `activities/LauncherActivity` | Actividad `HOME` | Sí (obligatorio) | Escritorio: fondo de pantalla, cuadrícula de apps ancladas al escritorio, notas. Avisa al servicio con `LAUNCHER_RESUMED` y le pide abrir apps con `ACTION_LAUNCH_APP`. |
 | `activities/SecondaryLauncherActivity` | Actividad `SECONDARY_HOME` | Sí | Subclase vacía de `LauncherActivity` para pantallas secundarias. |
 | `activities/DesktopActivity` | Actividad normal, tarea propia (`taskAffinity` `.desktop`), fuera de recientes | No | **Escritorio propio de Escritorio Glass** (Fase 6, paso 7): fondo de pantalla con íconos pequeños en columnas desde arriba a la izquierda, como Windows. Un clic abre la app (vía `ACTION_LAUNCH_APP`); clic derecho o pulsación larga abre el menú de vidrio del ícono o del escritorio. No es pantalla de inicio (HyperOS quitaría los gestos): `DockService` la pone encima del inicio de HyperOS cada vez que este pasa al frente (evento de ventana del paquete de inicio, 60 ms después) y al arrancar si el inicio está al frente; el botón Inicio y Mostrar escritorio sin Shizuku la traen directo. Se cierra con `desktop_close` al salir del modo escritorio. La barra, el selector y Mostrar escritorio la ignoran (`AppUtils.isOwnDesktop`). La primera vez ancla navegador, archivos, Ajustes y tienda. |
@@ -131,7 +132,7 @@ Se usa a través de `DeviceUtils.putSecureSetting`, `putGlobalSetting` y `putSys
 
 ### Shizuku
 - `DeviceUtils.hasShizukuPermission()` = `Shizuku.pingBinder() && checkSelfPermission()`. El permiso se pide desde
-  `MainActivity.requestShizukuPermission` (`:184`).
+  la bienvenida (`WelcomeActivity`, opcionales) y desde la ventana de Shizuku del escritorio (`ShizukuState`).
 - `wrappers/`: `ActivityManagerWrapper` (tareas, `resizeTask`, `removeTask`), `WindowOrganizerWrapper` (manda una
   ventana detrás del escritorio o la trae al frente; solo lo usa `PrivilegedActions`), `StatusBarWrapper` (bloquea la
   cortina del sistema con `IStatusBarService.disable`, por reflexión; solo lo usa `PrivilegedActions`), `WifiManagerWrapper` (encender

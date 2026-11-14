@@ -14,6 +14,7 @@
     <color name="glass_surface_hover_soft">#14FFFFFF</color>   <!-- white 8 %: mouse over a button -->
     <color name="glass_surface_hover_strong">#29FFFFFF</color>   <!-- white 16 %: mouse over an active one -->
     <color name="glass_separator">#2EFFFFFF</color>
+    <color name="glass_warning">#FFC857</color>           <!-- amber: something still missing -->
 
     <!-- Accent -->
     <color name="accent_sky">#6CC4FF</color>

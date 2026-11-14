@@ -78,6 +78,18 @@
         <item name="android:windowDisablePreview">true</item>
     </style>
 
+    <!-- First-run welcome (WelcomeActivity): its glass card over the wallpaper, under the system bars -->
+    <style name="AppTheme.Welcome" parent="AppTheme">
+        <item name="windowNoTitle">true</item>
+        <item name="windowActionBar">false</item>
+        <item name="android:windowShowWallpaper">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
+
     <style name="DialogTheme" parent="ThemeOverlay.Material3.MaterialAlertDialog">
         <item name="dialogCornerRadius">28dp</item>
         <item name="cornerFamily">rounded</item>

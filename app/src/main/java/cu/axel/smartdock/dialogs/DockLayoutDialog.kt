@@ -1,6 +1,7 @@
 package cu.axel.smartdock.dialogs
 
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.preference.PreferenceManager
 import cu.axel.smartdock.R
 
@@ -8,10 +9,20 @@ class DockLayoutDialog(context: Context, asOverlay: Boolean = false) {
     init {
         val dialog = DockDialog(context, asOverlay)
         val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
-        val editor = sharedPreferences.edit()
         dialog.setTitle(R.string.choose_dock_layout)
         val layout = sharedPreferences.getInt("dock_layout", -1)
-        dialog.setSingleChoiceItems(R.array.layouts, layout) { _, which ->
+        dialog.setSingleChoiceItems(R.array.layouts, layout) { _, which -> applyLayout(sharedPreferences, which) }
+        dialog.setPositiveButton(R.string.ok, null)
+        dialog.show()
+    }
+
+    companion object {
+        /** "Escritorio" in R.array.layouts: what Escritorio Glass starts with (the others stay in Apariencia). */
+        const val LAYOUT_DESKTOP = 2
+
+        /** Saves the settings of layout [which] (0 phone, 1 tablet, 2 desktop). */
+        fun applyLayout(sharedPreferences: SharedPreferences, which: Int) {
+            val editor = sharedPreferences.edit()
             editor.putBoolean("enable_nav_back", which != 0)
             editor.putBoolean("enable_nav_home", which != 0)
             editor.putBoolean("enable_nav_recents", which != 0)
@@ -42,7 +53,5 @@ class DockLayoutDialog(context: Context, asOverlay: Boolean = false) {
             editor.putBoolean("enable_qs_pin", which != 2)
             editor.apply()
         }
-        dialog.setPositiveButton(R.string.ok, null)
-        dialog.show()
     }
 }

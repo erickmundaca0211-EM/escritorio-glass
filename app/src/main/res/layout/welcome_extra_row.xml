@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One optional permission on the welcome's "Opcionales" step: what it adds and its button or check. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:minHeight="56dp"
+    android:orientation="horizontal"
+    android:paddingTop="6dp"
+    android:paddingBottom="6dp">
+
+    <ImageView
+        android:id="@+id/extra_icon"
+        android:layout_width="34dp"
+        android:layout_height="34dp"
+        android:background="@drawable/welcome_icon_bg"
+        android:importantForAccessibility="no"
+        android:padding="8dp"
+        android:tint="@color/glass_text_primary" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_marginEnd="12dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/extra_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/glass_text_primary"
+            android:textFontWeight="600"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/extra_desc"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="1dp"
+            android:textColor="@color/glass_text_secondary"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/extra_action"
+        android:layout_width="wrap_content"
+        android:layout_height="34dp"
+        android:drawablePadding="6dp"
+        android:gravity="center"
+        android:minWidth="88dp"
+        android:paddingStart="14dp"
+        android:paddingEnd="14dp"
+        android:textColor="@color/glass_text_primary"
+        android:textSize="13sp" />
+</LinearLayout>

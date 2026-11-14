@@ -77,6 +77,11 @@
             android:launchMode="singleTask"
             android:taskAffinity="${applicationId}.desktop"
             android:theme="@style/AppTheme.Desktop" />
+        <!-- First-run welcome: guides the permissions; "Administrar permisos" opens it again -->
+        <activity
+            android:name=".activities.WelcomeActivity"
+            android:exported="false"
+            android:theme="@style/AppTheme.Welcome" />
 
         <service
             android:name=".services.DockService"

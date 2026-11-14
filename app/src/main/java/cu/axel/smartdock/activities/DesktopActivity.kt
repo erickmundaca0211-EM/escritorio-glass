@@ -43,14 +43,12 @@ import cu.axel.smartdock.services.ACTION_LAUNCH_APP
 import cu.axel.smartdock.services.DESKTOP_APP_PINNED
 import cu.axel.smartdock.services.DESKTOP_CLOSE
 import cu.axel.smartdock.services.DOCK_SERVICE_ACTION
-import cu.axel.smartdock.services.taskbarWindowHeightDp
-import cu.axel.smartdock.system.DesktopScale
+import cu.axel.smartdock.services.taskbarClearancePx
 import cu.axel.smartdock.utils.AppUtils
 import cu.axel.smartdock.utils.ColorUtils
 import cu.axel.smartdock.utils.DeviceUtils
 import cu.axel.smartdock.utils.IconPackUtils
 import cu.axel.smartdock.utils.PanelAnimator
-import kotlin.math.roundToInt
 
 /**
  * Escritorio Glass's own desktop (Fase 6, step 7): the wallpaper with small app icons in columns from
@@ -131,15 +129,9 @@ class DesktopActivity : AppCompatActivity() {
         loadIcons()
     }
 
-    /**
-     * Room kept free under the icons and the menus for the floating taskbar, which has a scale of its own
-     * (DesktopScale.barDensity), plus a small gap.
-     */
-    private fun taskbarClearance(): Int {
-        val barDensity = DesktopScale.barDensity(sharedPreferences) ?: resources.configuration.densityDpi
-        return (taskbarWindowHeightDp(sharedPreferences) * barDensity / 160f).roundToInt() +
-            resources.getDimensionPixelSize(R.dimen.desktop_taskbar_gap)
-    }
+    /** Room kept free under the icons and the menus for the floating taskbar, plus a small gap. */
+    private fun taskbarClearance(): Int =
+        taskbarClearancePx(this, sharedPreferences) + resources.getDimensionPixelSize(R.dimen.desktop_taskbar_gap)
 
     override fun onPause() {
         super.onPause()
