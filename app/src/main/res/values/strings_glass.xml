@@ -165,4 +165,10 @@
     <string name="welcome_missing_title">Almost there</string>
     <string name="welcome_missing_body">Without “Display over other apps” and desktop mode turned on, Escritorio Glass cannot work.</string>
     <string name="welcome_exit">Exit</string>
+
+    <!-- Help and about: the fork's own source code and guide (GPL-3.0 asks for the source to be public) -->
+    <string name="project_url" translatable="false">https://github.com/erickmundaca0211-EM/escritorio-glass</string>
+    <string name="project_help_url" translatable="false">https://github.com/erickmundaca0211-EM/escritorio-glass#permisos</string>
+    <string name="source_code">Source code and guide</string>
+    <string name="source_code_summary">Escritorio Glass is free software (GPL-3.0): its code and its full guide are on GitHub</string>
 </resources>

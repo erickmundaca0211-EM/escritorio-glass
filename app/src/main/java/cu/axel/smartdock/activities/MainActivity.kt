@@ -17,7 +17,6 @@ import androidx.preference.PreferenceManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import cu.axel.smartdock.R
 import cu.axel.smartdock.dialogs.DockLayoutDialog
-import cu.axel.smartdock.dialogs.DonateDialog
 import cu.axel.smartdock.fragments.PreferencesFragment
 import cu.axel.smartdock.utils.DeviceUtils
 import cu.axel.smartdock.utils.Utils
@@ -30,12 +29,6 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
         sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this)
-        var launchCount = sharedPreferences.getInt("launch_count", 0)
-        if (launchCount != -1 && launchCount < 5)
-            sharedPreferences.edit { putInt("launch_count", ++launchCount) }
-        if (launchCount == 5) {
-            DonateDialog(this)
-        }
         // The pinned dock is an overlay drawn on top of this activity, so the last settings
         // (e.g. "Help and about" with the credits) could end up hidden behind it
         supportFragmentManager.registerFragmentLifecycleCallbacks(object :

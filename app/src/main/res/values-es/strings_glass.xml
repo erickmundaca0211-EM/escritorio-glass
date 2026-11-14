@@ -164,4 +164,8 @@
     <string name="welcome_missing_title">Falta poco</string>
     <string name="welcome_missing_body">Sin «Mostrar sobre otras apps» y el modo escritorio activado, Escritorio Glass no puede funcionar.</string>
     <string name="welcome_exit">Salir</string>
+
+    <!-- Ayuda y acerca de: código fuente y guía propios del fork -->
+    <string name="source_code">Código fuente y guía</string>
+    <string name="source_code_summary">Escritorio Glass es software libre (GPL-3.0): su código y su guía completa están en GitHub</string>
 </resources>

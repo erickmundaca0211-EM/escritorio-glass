@@ -1,64 +1,103 @@
-> **Escritorio Glass** (`pe.vega.escritorioglass`) es un fork de **Smart Dock** de
-> [Axel358](https://github.com/axel358/smartdock), distribuido bajo la misma licencia
-> [GPL-3.0](LICENSE). Todo el mérito del código original es de su autor y colaboradores
-> ([Contributors.md](Contributors.md)). El README propio del fork se escribirá en la Fase 6;
-> lo que sigue es el README original de Smart Dock.
-
 <div align="center">
-  <h1>Smart Dock</h1>
-  A user-friendly desktop mode launcher that offers a modern and customizable user interface
+  <h1>Escritorio Glass</h1>
+  Un escritorio estilo PC para Android: barra de tareas, menú Inicio, ventanas y efecto vidrio.<br>
+  Pensado para usar el celular en horizontal, con teclado y mouse.
 </div>
 
-![Screenshot](fastlane/metadata/android/en-US/images/phoneScreenshots/1.png)
+> Escritorio Glass (`pe.vega.escritorioglass`) es un fork de [Smart Dock](https://github.com/axel358/smartdock),
+> de Axel358, y se distribuye bajo la misma licencia [GPL-3.0](LICENSE). Todo el mérito del código original es
+> de su autor y sus [colaboradores](Contributors.md). No está afiliado a Microsoft ni a Apple.
 
-## Main features
-- Very customizable, icons, colors, shapes, sounds
-- Multi window support
-- Keyboard shortcuts
-- Support for both desktop and tablet layouts
-- Compatible with Android 10 and above, no root required
+![Diseño del escritorio](docs/mockup/Main.png)
 
-## Install
+## Qué trae
 
-[<img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png"
-    alt="Get it on F-Droid"
-    height="80">](https://f-droid.org/packages/cu.axel.smartdock)
+- **Barra de tareas flotante de vidrio:** apps ancladas y abiertas; con Shizuku, un clic minimiza o restaura
+  una ventana; wifi, volumen, batería, fecha y hora.
+- **Menú Inicio:** búsqueda de apps, ancladas, recomendadas (las que usaste hace poco) y la lista completa;
+  apagar, reiniciar o salir del modo escritorio.
+- **Escritorio propio:** íconos pequeños que se abren con un clic; clic derecho o pulsación larga muestran
+  su menú.
+- **Ventanas:** las apps se abren en ventanas; selector de ventanas (Alt+Tab, el botón de vista de tareas o
+  deslizar desde el borde inferior); Mostrar escritorio con Win+D o la esquina derecha de la barra.
+- **Paneles:** ajustes rápidos, centro de notificaciones (responder y descartar) y calendario.
+- **Escala del escritorio** para ver más contenido, todo en horizontal mientras el modo escritorio está activo,
+  y atajos de teclado.
 
-You can grab the latest release from F-Droid
+![Ajustes rápidos](docs/mockup/QuickSettings.png)
 
-Note: The application should be installed as a system app in order to obtain the right permissions.
-Alternatively you can use [Shizuku](https://shizuku.rikka.app).
+## Privacidad
 
-## Usage
+- **Sin permiso de internet.** La compilación falla si alguna dependencia lo agrega: nada sale del celular.
+- No lee el contenido de otras apps. Las teclas solo se usan como atajos y nunca se guardan.
+- Las notificaciones solo se muestran y se descartan; no se guardan en ningún lado.
+- Todo cambio del sistema (escala, rotación, cortina) se deshace al salir del modo escritorio.
 
-### Grant restricted permissions: 
-On some devices Accessibility and Notification permissions might not be available. To solve this go to:  System Settings > Apps > Smartdock > 3 Dot menu (Top right corner) > Allow restricted permissions
+## Requisitos
 
-### Secure settings
-To grant secure settings permissions run the following command on an adb or root shell:
+- Android 11 o superior. Probado en un POCO X7 Pro con HyperOS.
+- Sin root. [Shizuku](#shizuku) y ADB son opcionales y suman funciones.
+
+## Instalación
+
+1. Descarga el APK desde [Versiones](https://github.com/erickmundaca0211-EM/escritorio-glass/releases) e
+   instálalo.
+2. Abre Escritorio Glass: una bienvenida te guía paso a paso por los permisos.
+3. Si al activar la accesibilidad Android habla de una «configuración restringida» (pasa con los APK
+   descargados): Ajustes > Apps > Escritorio Glass > ⋮ > «Permitir configuración restringida», y vuelve a
+   intentarlo.
+
+## Permisos
+
+| Permiso | Para qué | |
+|---|---|---|
+| Mostrar sobre otras apps | Dibujar la barra, el menú Inicio y los paneles | Obligatorio |
+| Accesibilidad (el modo escritorio) | Mostrar la barra, saber qué ventanas hay abiertas y responder a los atajos | Obligatorio |
+| Acceso a notificaciones | El centro de notificaciones y el contador de la campana | Opcional |
+| Uso de apps | Las recientes en Inicio y las apps abiertas sin Shizuku | Opcional |
+| Calendario | El próximo evento junto a la fecha | Opcional |
+| Shizuku | Minimizar, restaurar y cerrar ventanas; mantener cerrada la cortina del sistema | Opcional |
+| Ajustes seguros (ADB) | La escala del escritorio y activar el modo escritorio desde la app | Opcional |
+
+Para los ajustes seguros, con el celular conectado a una PC por USB:
+
 ```
-pm grant cu.axel.smartdock android.permission.WRITE_SECURE_SETTINGS
+adb shell pm grant pe.vega.escritorioglass android.permission.WRITE_SECURE_SETTINGS
 ```
 
-### Hide navigation bar
-You might also want to hide the Android navigation bar.
-[See hiding navigation bar](HideNav.md)
+La bienvenida se vuelve a abrir desde «Administrar permisos», en los ajustes de la app.
 
-## Get help and ask questions 
+## Shizuku
 
-Telegram support group: https://t.me/smartdock358
+[Shizuku](https://shizuku.rikka.app) es una app aparte, libre y de código abierto, que deja usar permisos de
+ADB sin una PC. Instálala, iníciala con la depuración inalámbrica (se apaga cada vez que reinicias el celular)
+y acepta el permiso para Escritorio Glass. Sin Shizuku el escritorio funciona con menos funciones.
 
-## Support the project
+## Si algo sale mal
 
-If you find this project useful or it has helped you in any way, consider showing your appreciation and supporting its ongoing development. 
+- **La barra desapareció:** desactiva y vuelve a activar Escritorio Glass en Ajustes > Accesibilidad.
+- **La pantalla quedó con otra escala:** en Ajustes > Pantalla vuelve al tamaño de siempre, o desde una PC:
+  `adb shell wm density reset`.
+- **Salir del modo escritorio:** menú Inicio > botón de apagado > «Salir del modo escritorio».
 
-Bitcoin Address:
+## Compilar
+
+Hace falta el JDK 21 y el SDK de Android con la plataforma 36.
+
 ```
-bc1qzc0jnpzk4g838t56jshvt4j5a2a5dgfx5w9k5a
+./gradlew assembleDebug
 ```
 
-Thank you for your support!
+El APK queda en `app/build/outputs/apk/debug/`.
 
-## Contributors
+## Créditos y licencias
 
-[See contributors](Contributors.md)
+- [Smart Dock](https://github.com/axel358/smartdock), de Axel358 y sus [colaboradores](Contributors.md):
+  GPL-3.0. Si te sirve, puedes [apoyar a Smart Dock](https://github.com/axel358/smartdock#support-the-project).
+- [Shizuku API](https://github.com/RikkaApps/Shizuku-API), de RikkaApps: MIT.
+- [RestrictionBypass](https://github.com/ChickenHook/RestrictionBypass), de ChickenHook: Apache 2.0.
+- AndroidX y Material Components, de Google: Apache 2.0.
+- La fuente [Inter](https://rsms.me/inter/): SIL Open Font License 1.1
+  ([texto](app/src/main/assets/licenses/Inter-OFL.txt)).
+
+Escritorio Glass se distribuye bajo la [Licencia Pública General GNU v3.0](LICENSE).

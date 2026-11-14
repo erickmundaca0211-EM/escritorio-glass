@@ -253,24 +253,23 @@
     <string name="smart_dock_its_free_and_open_">Escritorio Glass es un fork de Smart Dock, libre y de código abierto. Ver el proyecto original en GitHub</string>
     <string name="github">GitHub</string>
     <string name="show_help_summary">Toca para obtener ayuda</string>
-    <string name="app_help">    La aplicación debe instalarse como una aplicación del sistema para obtener los permisos correctos.
-    Sin esta funcionalidad será limitada.
+    <string name="app_help">Escritorio Glass funciona sin root. Necesita dos permisos: «Mostrar sobre otras apps» y el servicio de accesibilidad, que es el modo escritorio. La bienvenida te guía; vuelve a abrirla desde «Administrar permisos».
     \n
-    \nTambién debe ocultar los botones de navegación de Android. Para obtener más información sobre cómo hacer esto, consulte la ayuda completa en GitHub
+    \nCon Shizuku, además, minimiza, restaura y cierra ventanas, y mantiene cerrada la cortina del sistema.
     \n
-    \nLa aplicación utiliza un servicio de accesibilidad para capturar la entrada del teclado, si ese servicio falla, es posible que deba volver a habilitarlo o reiniciar el sistema.
+    \nSi la barra desaparece, desactiva y vuelve a activar Escritorio Glass en Accesibilidad. Si la pantalla quedó con otra escala, vuelve al tamaño de siempre en Ajustes > Pantalla.
     \n
-    \nPara desinstalar la aplicación, debe eliminar el permiso de administrador del dispositivo en la configuración del sistema</string>
+    \nEn «Más ayuda» está la guía completa del proyecto.</string>
     <string name="more_help">Más ayuda</string>
     <string name="contributors">Colaboradores</string>
     <string name="tap_to_see_the_list_of_great_p">Toque para ver la lista de grandes personas que han contribuido a Smart Dock</string>
-    <string name="accessibility_service_description">Permite realizar acciones como Atrás</string>
+    <string name="accessibility_service_description">Es el modo escritorio de Escritorio Glass: muestra la barra de tareas, sabe qué ventanas están abiertas y responde a los atajos de teclado. No lee el contenido de tus apps ni guarda lo que escribes.</string>
     <string name="join_telegram_title">grupo de telegramas</string>
     <string name="join_telegram_summary">¿Tienes alguna pregunta? Únete al grupo de soporte de Telegram</string>
     <string name="gnu_general_public_licence_v3">Licencia Pública General GNU v3.0</string>
     <string name="license">Licencia</string>
     <string name="donate">Donar</string>
-    <string name="support_the_project">Apoyar el proyecto</string>
+    <string name="support_the_project">Apoya a Smart Dock, el proyecto original de Axel358</string>
 
     <!-- App menu -->
     <string name="user">Usuario</string>

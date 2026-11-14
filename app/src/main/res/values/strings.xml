@@ -253,24 +253,23 @@
     <string name="smart_dock_its_free_and_open_">Escritorio Glass is a fork of Smart Dock, free and open source. See the original project on GitHub</string>
     <string name="github">GitHub</string>
     <string name="show_help_summary">Tap for help</string>
-    <string name="app_help">    The application should be installed as a system app in order to obtain the right permissions.
-    Without this functionality will be limited.
+    <string name="app_help">Escritorio Glass works without root. It needs two permissions: “Display over other apps” and the accessibility service, which is desktop mode itself. The welcome guides you; open it again from “Manage permissions”.
     \n
-    \nYou should also hide the Android navigation buttons. For more info on how to do this check the full help on GitHub
+    \nWith Shizuku it also minimizes, restores and closes windows, and keeps the system shade closed.
     \n
-    \nThe app uses an accessibility service to capture keyboard input, if that service is crashed you might need to re-enable it and/or restart the system.
+    \nIf the taskbar disappears, turn Escritorio Glass off and on again in Accessibility. If the screen kept another scale, set the usual size again in Settings > Display.
     \n
-    \nTo uninstall the app you must remove it\'s device admin permission on system settings</string>
+    \n“More help” opens the project’s full guide.</string>
     <string name="more_help">More help</string>
     <string name="contributors">Contributors</string>
     <string name="tap_to_see_the_list_of_great_p">Tap to see the list of great people that has contributed to Smart Dock</string>
-    <string name="accessibility_service_description">Allows to perform actions such as Back</string>
+    <string name="accessibility_service_description">This is Escritorio Glass desktop mode: it shows the taskbar, knows which windows are open and answers keyboard shortcuts. It never reads what your apps show or stores what you type.</string>
     <string name="join_telegram_title">Telegram group</string>
     <string name="join_telegram_summary">Got any questions? Join the Telegram support group</string>
     <string name="gnu_general_public_licence_v3">GNU General Public Licence v3.0</string>
     <string name="license">License</string>
     <string name="donate">Donate</string>
-    <string name="support_the_project">Support the project</string>
+    <string name="support_the_project">Support Smart Dock, the original project by Axel358</string>
 
     <!-- App menu -->
     <string name="user">User</string>

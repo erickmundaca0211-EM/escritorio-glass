@@ -20,12 +20,11 @@ class NotificationPermissionDialog(context: Context, asOverlay: Boolean = false)
             )
             Toast.makeText(context, R.string.enable_access_help, Toast.LENGTH_LONG).show()
         }
+        // The fork's own guide: its "Permisos" part explains restricted settings for this app
         dialog.setNeutralButton(R.string.help) { _, _ ->
             context.startActivity(
-                Intent(
-                    Intent.ACTION_VIEW,
-                    "https://github.com/axel358/smartdock#grant-restricted-permissions".toUri()
-                ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                Intent(Intent.ACTION_VIEW, context.getString(R.string.project_help_url).toUri())
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             )
         }
         dialog.show()
