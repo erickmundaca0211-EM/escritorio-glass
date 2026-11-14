@@ -5,25 +5,49 @@ plugins {
     id 'kotlin-android'
 }
 
+// Release key of Escritorio Glass: keystore.properties at the repo root (see keystore.properties.example),
+// never committed. Without it the release APK comes out unsigned and debug builds keep the debug key.
+def keystorePropertiesFile = rootProject.file('keystore.properties')
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.withInputStream { keystoreProperties.load(it) }
+}
+
 android {
     compileSdk 36
     namespace "cu.axel.smartdock"
-	
+
     defaultConfig {
         // Escritorio Glass: own applicationId; the Kotlin namespace stays as upstream to ease merges
         applicationId "pe.vega.escritorioglass"
         minSdk 30
         targetSdk 36
-        versionCode 1150
-        versionName "1.15.0"
-        signingConfig signingConfigs.debug
+        // Own numbering from 1.0.0 (major * 10000 + minor * 100 + patch), above Smart Dock's 1150
+        versionCode 10000
+        versionName "1.0.0"
+    }
+
+    signingConfigs {
+        if (keystorePropertiesFile.exists()) {
+            release {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
     }
 
     buildTypes {
+        debug {
+            // With the release key around, test builds use it too: the phone then takes each one as an
+            // update of the installed version (another key means uninstalling and granting all again)
+            signingConfig keystorePropertiesFile.exists() ? signingConfigs.release : signingConfigs.debug
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.debug
+            signingConfig keystorePropertiesFile.exists() ? signingConfigs.release : null
         }
     }
     compileOptions {

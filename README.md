@@ -90,6 +90,10 @@ Hace falta el JDK 21 y el SDK de Android con la plataforma 36.
 
 El APK queda en `app/build/outputs/apk/debug/`.
 
+Para la versión firmada, copia `keystore.properties.example` como `keystore.properties` (git lo ignora),
+complétalo con tu llave y ejecuta `./gradlew assembleRelease`. Sin ese archivo el APK de release sale sin
+firmar.
+
 ## Créditos y licencias
 
 - [Smart Dock](https://github.com/axel358/smartdock), de Axel358 y sus [colaboradores](Contributors.md):

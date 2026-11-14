@@ -13,3 +13,8 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Release key and its passwords (Escritorio Glass): never in git
+keystore.properties
+*.jks
+*.keystore
